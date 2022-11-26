@@ -1,0 +1,29 @@
+<app-container title="Management" icon="fa-user-tie" [isLoading]="isLoading" [isSubmitting]="isSubmitting">
+  <div class="w-full">
+    <mat-tab-group>
+      <mat-tab label="Manager Accounts">
+        <app-manager-accounts [managerAccounts]="fundProperties?.managers" (loadingChanged)="setIsSubmitting($event)">
+        </app-manager-accounts>
+      </mat-tab>
+      <mat-tab label="Shareholder Accounts">
+        <app-share-holder-accounts [shareholders]="fundProperties?.shareholders"
+          [totalShareCount]="fundProperties?.totalSupply" (loadingChanged)="setIsSubmitting($event)">
+        </app-share-holder-accounts>
+      </mat-tab>
+      <mat-tab label="Asset Allocation">
+        <app-asset-allocation [allocation]="fundProperties?.assets" (loadingChanged)="setIsSubmitting($event)">
+        </app-asset-allocation>
+      </mat-tab>
+      <mat-tab label="Oracle">
+        <app-oracle [oracleAssetSettings]="fundProperties?.oracleAssetSettings"
+          (loadingChanged)="setIsSubmitting($event)">
+        </app-oracle>
+      </mat-tab>
+      <mat-tab label="Reserve">
+        <app-reserve [accessingAccounts]="fundProperties?.reserveAccessingAccounts"
+          (loadingChanged)="setIsSubmitting($event)">
+          ></app-reserve>
+      </mat-tab>
+    </mat-tab-group>
+  </div>
+</app-container>

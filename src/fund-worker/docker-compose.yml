@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  ence-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - env/docker.env
+    ports:
+      - 3000:3000
+    depends_on:
+      - mongodb
+
+  mongodb:
+    image: mongo:latest
+    env_file:
+      - env/docker.env
+    volumes:
+      - ./data/mongo_data:/data/db
+    ports:
+      - 27017:27017
+
+  redis:
+    image: bitnami/redis:latest
+    environment:
+      - REDIS_REPLICATION_MODE=master
+    ports:
+      - 6379:6379

@@ -1,0 +1,29 @@
+<div class="animate__animated animate__fadeIn mt-10">
+  <mat-card class="toolbar m-0 p-0">
+    <mat-toolbar>
+      <span class="icon mr-2" *ngIf="icon">
+        <i class="fa fa-fw" [ngClass]="icon"></i>
+      </span>
+      <span>{{ title }}</span>
+      <span class="title-spacer"></span>
+      <button
+        mat-mini-fab
+        color="primary"
+        [disabled]="!backUrl"
+        (click)="goBack()"
+      >
+        <mat-icon fontSet="fa" fontIcon="fa-step-backward"></mat-icon>
+      </button>
+    </mat-toolbar>
+    <mat-progress-bar
+      *ngIf="isLoading || isSubmitting"
+      mode="indeterminate"
+    ></mat-progress-bar>
+  </mat-card>
+  <mat-card
+    class="mt-10 animate__animated animate__fadeIn card"
+    *ngIf="!isLoading"
+  >
+    <ng-content></ng-content>
+  </mat-card>
+</div>

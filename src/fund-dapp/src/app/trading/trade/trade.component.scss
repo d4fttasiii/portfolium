@@ -1,0 +1,13 @@
+.form-card {
+    width: 350px;
+    height: 190px;
+    margin: 25px auto;
+    padding: 25px;
+    border-radius: 20px;
+    background-color: #303030;
+
+    .price {
+        line-height: 36px;
+        margin-left: 25px;
+    }
+}

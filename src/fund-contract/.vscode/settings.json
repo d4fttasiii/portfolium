@@ -1,0 +1,7 @@
+{
+    "solidity.compileUsingRemoteVersion": "latest",
+    "solidity.linter": "solhint",
+    "solidity.solhintRules": {
+    "avoid-sha3": "warn"
+    }
+}

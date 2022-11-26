@@ -1,0 +1,23 @@
+<app-container
+  title="Synthetics"
+  icon="fa-flask"
+  [isLoading]="isLoading"
+  [isSubmitting]="isSubmitting"
+>
+  <div class="w-full">
+    <div class="grid grid-cols-2 gap-6 my-6">
+      <div *ngFor="let syn of data">
+        <app-synthetic-card
+          [name]="syn.name"
+          [symbol]="syn.symbol"
+          [address]="syn.address"
+          [price]="syn.price"
+          [buyOrders]="syn.buyOrders"
+          [sellOrders]="syn.sellOrders"
+          [nativeBalance]="syn.nativeBalance"
+        >
+        </app-synthetic-card>
+      </div>
+    </div>
+  </div>
+</app-container>
