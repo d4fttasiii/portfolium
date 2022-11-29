@@ -1,0 +1,168 @@
+{
+  "contractName": "OrderBook",
+  "abi": [],
+  "metadata": "{\"compiler\":{\"version\":\"0.8.16+commit.07a7930e\"},\"language\":\"Solidity\",\"output\":{\"abi\":[],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"project:/contracts/OrderBook.sol\":\"OrderBook\"},\"evmVersion\":\"london\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\"},\"optimizer\":{\"enabled\":false,\"runs\":200},\"remappings\":[]},\"sources\":{\"project:/contracts/OrderBook.sol\":{\"keccak256\":\"0x6f65fb8dfc9e837b8dabf1be5c4b38c4d0ec379a50a73d685bb26e416ac96f78\",\"urls\":[\"bzz-raw://473f1df0d95db784b0f8a1e7d2bae0f6057ee28342123566b4ad9ecd321f4ed3\",\"dweb:/ipfs/QmWBKns5Y2RHiJWnEaHuWGj2Wg4S753UoW1XhEwFxC5ESK\"]}},\"version\":1}",
+  "bytecode": "0x6080604052348015600f57600080fd5b50603f80601d6000396000f3fe6080604052600080fdfea2646970667358221220352d0f1609e375d1c1ea3116cc8321c9218a6be9d1765add146581e82094d2ca64736f6c63430008100033",
+  "deployedBytecode": "0x6080604052600080fdfea2646970667358221220352d0f1609e375d1c1ea3116cc8321c9218a6be9d1765add146581e82094d2ca64736f6c63430008100033",
+  "immutableReferences": {},
+  "generatedSources": [],
+  "deployedGeneratedSources": [],
+  "sourceMap": "26:122:4:-:0;;;;;;;;;;;;;;;;;;;",
+  "deployedSourceMap": "26:122:4:-:0;;;;;",
+  "source": "pragma solidity ^0.8.16;\n\ncontract OrderBook {\n    struct Order {\n        uint256 price;\n        uint256 volumne;\n        uint256 timestamp;\n    }\n}",
+  "sourcePath": "/home/d4fttasiii/git/portfolium/src/fund-contract/contracts/OrderBook.sol",
+  "ast": {
+    "absolutePath": "project:/contracts/OrderBook.sol",
+    "exportedSymbols": {
+      "OrderBook": [
+        3226
+      ]
+    },
+    "id": 3227,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 3218,
+        "literals": [
+          "solidity",
+          "^",
+          "0.8",
+          ".16"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:4"
+      },
+      {
+        "abstract": false,
+        "baseContracts": [],
+        "canonicalName": "OrderBook",
+        "contractDependencies": [],
+        "contractKind": "contract",
+        "fullyImplemented": true,
+        "id": 3226,
+        "linearizedBaseContracts": [
+          3226
+        ],
+        "name": "OrderBook",
+        "nameLocation": "35:9:4",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "canonicalName": "OrderBook.Order",
+            "id": 3225,
+            "members": [
+              {
+                "constant": false,
+                "id": 3220,
+                "mutability": "mutable",
+                "name": "price",
+                "nameLocation": "82:5:4",
+                "nodeType": "VariableDeclaration",
+                "scope": 3225,
+                "src": "74:13:4",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName": {
+                  "id": 3219,
+                  "name": "uint256",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "74:7:4",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 3222,
+                "mutability": "mutable",
+                "name": "volumne",
+                "nameLocation": "105:7:4",
+                "nodeType": "VariableDeclaration",
+                "scope": 3225,
+                "src": "97:15:4",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName": {
+                  "id": 3221,
+                  "name": "uint256",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "97:7:4",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              },
+              {
+                "constant": false,
+                "id": 3224,
+                "mutability": "mutable",
+                "name": "timestamp",
+                "nameLocation": "130:9:4",
+                "nodeType": "VariableDeclaration",
+                "scope": 3225,
+                "src": "122:17:4",
+                "stateVariable": false,
+                "storageLocation": "default",
+                "typeDescriptions": {
+                  "typeIdentifier": "t_uint256",
+                  "typeString": "uint256"
+                },
+                "typeName": {
+                  "id": 3223,
+                  "name": "uint256",
+                  "nodeType": "ElementaryTypeName",
+                  "src": "122:7:4",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  }
+                },
+                "visibility": "internal"
+              }
+            ],
+            "name": "Order",
+            "nameLocation": "58:5:4",
+            "nodeType": "StructDefinition",
+            "scope": 3226,
+            "src": "51:95:4",
+            "visibility": "public"
+          }
+        ],
+        "scope": 3227,
+        "src": "26:122:4",
+        "usedErrors": []
+      }
+    ],
+    "src": "0:148:4"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.8.16+commit.07a7930e.Emscripten.clang"
+  },
+  "networks": {},
+  "schemaVersion": "3.4.9",
+  "updatedAt": "2022-11-29T17:14:35.919Z",
+  "devdoc": {
+    "kind": "dev",
+    "methods": {},
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {},
+    "version": 1
+  }
+}

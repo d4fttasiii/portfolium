@@ -8,7 +8,7 @@ import "./Oracle.sol";
 import "./Mirrored.sol";
 import "./TokenERC20.sol";
 
-contract Cron {
+contract PriceLimitedCron {
     enum Mode {
         Amount,
         Price
@@ -47,9 +47,10 @@ contract Cron {
     Oracle public oracle;
     IUniswapV2Router02 public uniswapRouter;
 
-    mapping(address => uint256) jobUserBalances;
-    mapping(address => uint32) jobUserCount;
-    mapping(address => Job[]) jobs;
+    mapping(address => uint256) public jobNativeBalances;
+    mapping(address => mapping(address => uint256)) public jobTokenBalances;
+    mapping(address => uint32) public jobUserCount;
+    mapping(address => Job[]) public jobs;
 
     constructor(
         Fund _fund,
@@ -123,15 +124,35 @@ contract Cron {
     }
 
     function deposit() public payable {
-        jobUserBalances[msg.sender] += msg.value;
+        jobNativeBalances[msg.sender] += msg.value;
     }
 
-    function withdraw(uint256 amount) public payable {
-        uint256 balance = jobUserBalances[msg.sender];
+    function depositToken(address _token, uint256 _amount) public payable {
+        bool success = IERC20(_token).transferFrom(
+            msg.sender,
+            address(this),
+            _amount
+        );
+        require(success, "Unable to deposit tokens!");
+        jobTokenBalances[msg.sender][_token] += _amount;
+    }
+
+    function withdraw(uint256 _amount) public payable {
+        uint256 balance = jobNativeBalances[msg.sender];
         {
-            require(balance >= amount, "Insufficient balance!");
+            require(balance >= _amount, "Insufficient balance!");
         }
-        jobUserBalances[msg.sender] -= amount;
+        jobNativeBalances[msg.sender] -= _amount;
+        payable(msg.sender).transfer(_amount);
+    }
+
+    function withdrawToken(address _token, uint256 _amount) public payable {
+        uint256 balance = jobTokenBalances[msg.sender][_token];
+        {
+            require(balance >= _amount, "Insufficient token balance!");
+        }
+        jobTokenBalances[msg.sender][_token] -= _amount;
+        IERC20(_token).transfer(msg.sender, _amount);
     }
 
     function createRecurringMirroredBuyJob(
@@ -417,7 +438,7 @@ contract Cron {
     //** INTERNAL **/
 
     function _executeErc20Job(Job memory _job) internal {
-        uint256 balance = jobUserBalances[_job.ownerAddress];
+        uint256 balance = jobNativeBalances[_job.ownerAddress];
         uint256 cronCommission = commission;
 
         if (_job.operation == Operations.Buy) {
@@ -441,6 +462,13 @@ contract Cron {
             );
         } else if (_job.operation == Operations.Sell) {
             require(cronCommission <= balance, "Insufficient user balance!");
+
+            uint256 tokenBalance = jobTokenBalances[_job.ownerAddress][
+                _job.contractAddress
+            ];
+
+            require(tokenBalance >= _job.amount, "Insufficient token balance!");
+
             uint256 received = _convertFromErc20(
                 _job.contractAddress,
                 _job.amount
@@ -455,7 +483,7 @@ contract Cron {
 
     function _executeMirroredJob(Job memory _job) internal {
         Mirrored mirroredAsset = Mirrored(_job.contractAddress);
-        uint256 balance = jobUserBalances[_job.ownerAddress];
+        uint256 balance = jobNativeBalances[_job.ownerAddress];
         uint256 cronCommission = commission;
         uint256 mirroredCommission = mirroredAsset.commission();
         (uint256 price, ) = oracle.getPrice(_job.contractAddress);
@@ -489,7 +517,7 @@ contract Cron {
     }
 
     function _executePortfolioJob(Job memory _job) internal {
-        uint256 balance = jobUserBalances[_job.ownerAddress];
+        uint256 balance = jobNativeBalances[_job.ownerAddress];
         uint256 cronCommission = commission;
         (, , uint256 fundCommission, ) = fund.properties();
 
@@ -524,7 +552,7 @@ contract Cron {
     }
 
     function _executeErc20PriceLimitedJob(Job memory _job) internal {
-        uint256 balance = jobUserBalances[_job.ownerAddress];
+        uint256 balance = jobNativeBalances[_job.ownerAddress];
         uint256 cronCommission = commission;
 
         if (_job.operation == Operations.Buy) {
@@ -551,7 +579,7 @@ contract Cron {
                 cronCommission
             );
         } else if (_job.operation == Operations.Sell) {
-            // require(cronCommission <= balance, "Insufficient user balance!");
+            require(cronCommission <= balance, "Insufficient user balance!");
             // uint256 received = _convertFromErc20(
             //     _job.contractAddress,
             //     _job.amount
@@ -567,22 +595,22 @@ contract Cron {
 
     function _executeMirroredPriceLimitedJob(Job memory _job) internal {
         Mirrored mirroredAsset = Mirrored(_job.contractAddress);
-        uint256 balance = jobUserBalances[_job.ownerAddress];
+        uint256 balance = jobNativeBalances[_job.ownerAddress];
         uint256 cronCommission = commission;
         uint256 mirroredCommission = mirroredAsset.commission();
         (uint256 price, ) = oracle.getPrice(_job.contractAddress);
 
         // TODO
         // if (_job.operation == Operations.Buy) {
-            // uint256 cost = price * _job.amount;
-            // uint256 estimatedCost = cost +
-            //     cronCommission +
-            //     mirroredCommission +
-            //     1 ether;
+        // uint256 cost = price * _job.amount;
+        // uint256 estimatedCost = cost +
+        //     cronCommission +
+        //     mirroredCommission +
+        //     1 ether;
 
-            // require(estimatedCost <= balance, "Insufficient user balance!");
+        // require(estimatedCost <= balance, "Insufficient user balance!");
 
-            // mirroredAsset.mint{value: cost + mirroredCommission}(_job.amount);
+        // mirroredAsset.mint{value: cost + mirroredCommission}(_job.amount);
         //     _deductCommissionAndTransferTokenToOwner(
         //         _job.contractAddress,
         //         _job.ownerAddress,
@@ -602,7 +630,7 @@ contract Cron {
     }
 
     function _executePortfolioPriceLimitedJob(Job memory _job) internal {
-        uint256 balance = jobUserBalances[_job.ownerAddress];
+        uint256 balance = jobNativeBalances[_job.ownerAddress];
         uint256 cronCommission = commission;
         (, , uint256 fundCommission, ) = fund.properties();
         // TODO
@@ -617,7 +645,7 @@ contract Cron {
         //     fund.buyShares{value: cost}(_job.amount);
         //     reserve.deposit{value: cronCommission}();
         //     fund.transfer(_job.ownerAddress, _job.amount);
-        //     jobUserBalances[_job.ownerAddress] -= cost;
+        //     jobNativeBalances[_job.ownerAddress] -= cost;
         // } else if (_job.operation == Operations.Sell) {
         //     require(
         //         cronCommission + fundCommission <= balance,
@@ -638,7 +666,7 @@ contract Cron {
         uint256 _commission
     ) internal {
         reserve.deposit{value: _commission}();
-        jobUserBalances[_ownerAddress] -= _commission;
+        jobNativeBalances[_ownerAddress] -= _commission;
         payable(_ownerAddress).transfer(_received - _commission);
     }
 
@@ -650,7 +678,7 @@ contract Cron {
         uint256 _commission
     ) internal {
         reserve.deposit{value: _commission}();
-        jobUserBalances[_ownerAddress] -= (_commission + _cost);
+        jobNativeBalances[_ownerAddress] -= (_commission + _cost);
         IERC20(_tokenAddress).transfer(_ownerAddress, _received);
     }
 

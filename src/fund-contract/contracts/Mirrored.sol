@@ -51,7 +51,7 @@ contract Mirrored is TokenERC20 {
         commission = newcommission;
     }
 
-    function mint(uint256 amount) external payable {
+    function mint(uint256 amount) external payable returns (uint256) {
         (uint256 price, ) = oracle.getPrice(address(this));
         uint256 cost = (price * amount) / (10**decimals) + commission;
 
@@ -62,6 +62,8 @@ contract Mirrored is TokenERC20 {
         reserve.deposit{value: msg.value}();
         emit Transfer(address(0), address(this), amount);
         emit Transfer(address(this), msg.sender, amount);
+
+        return cost;
     }
 
     function burn(uint256 amount) external payable returns (uint256) {
