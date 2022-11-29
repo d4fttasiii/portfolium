@@ -6,9 +6,9 @@ import "./Fund.sol";
 import "./Reserve.sol";
 import "./Oracle.sol";
 import "./Mirrored.sol";
+import "./TokenERC20.sol";
 
 contract Cron {
-    
     enum Mode {
         Amount,
         Price
@@ -148,6 +148,7 @@ contract Cron {
             _recurringInterval,
             ContractTypes.Mirrored,
             Operations.Buy,
+            Mode.Amount,
             _contractAddress,
             _amount
         );
@@ -167,6 +168,7 @@ contract Cron {
             _recurringInterval,
             ContractTypes.Mirrored,
             Operations.Sell,
+            Mode.Amount,
             _contractAddress,
             _amount
         );
@@ -186,6 +188,7 @@ contract Cron {
             _recurringInterval,
             ContractTypes.ERC20,
             Operations.Buy,
+            Mode.Amount,
             _contractAddress,
             _amount
         );
@@ -205,6 +208,7 @@ contract Cron {
             _recurringInterval,
             ContractTypes.ERC20,
             Operations.Sell,
+            Mode.Amount,
             _contractAddress,
             _amount
         );
@@ -224,6 +228,7 @@ contract Cron {
             _recurringInterval,
             ContractTypes.Portfolio,
             Operations.Buy,
+            Mode.Amount,
             _contractAddress,
             _amount
         );
@@ -243,8 +248,129 @@ contract Cron {
             _recurringInterval,
             ContractTypes.Portfolio,
             Operations.Sell,
+            Mode.Amount,
             _contractAddress,
             _amount
+        );
+    }
+
+    function createRecurringMirroredPriceLimitedBuyJob(
+        uint64 _recurringInterval,
+        address _contractAddress,
+        uint256 _priceLimit
+    )
+        external
+        payable
+        mustPayCommission
+        mustHaveCorrectInputs(_recurringInterval)
+    {
+        _createRecurringJob(
+            _recurringInterval,
+            ContractTypes.Mirrored,
+            Operations.Buy,
+            Mode.Price,
+            _contractAddress,
+            _priceLimit
+        );
+    }
+
+    function createRecurringMirroredPriceLimitedSellJob(
+        uint64 _recurringInterval,
+        address _contractAddress,
+        uint256 _priceLimit
+    )
+        external
+        payable
+        mustPayCommission
+        mustHaveCorrectInputs(_recurringInterval)
+    {
+        _createRecurringJob(
+            _recurringInterval,
+            ContractTypes.Mirrored,
+            Operations.Sell,
+            Mode.Price,
+            _contractAddress,
+            _priceLimit
+        );
+    }
+
+    function createRecurringErc20PriceLimitedBuyJob(
+        uint64 _recurringInterval,
+        address _contractAddress,
+        uint256 _priceLimit
+    )
+        external
+        payable
+        mustPayCommission
+        mustHaveCorrectInputs(_recurringInterval)
+    {
+        _createRecurringJob(
+            _recurringInterval,
+            ContractTypes.ERC20,
+            Operations.Buy,
+            Mode.Price,
+            _contractAddress,
+            _priceLimit
+        );
+    }
+
+    function createRecurringErc20PriceLimitedSellJob(
+        uint64 _recurringInterval,
+        address _contractAddress,
+        uint256 _priceLimit
+    )
+        external
+        payable
+        mustPayCommission
+        mustHaveCorrectInputs(_recurringInterval)
+    {
+        _createRecurringJob(
+            _recurringInterval,
+            ContractTypes.ERC20,
+            Operations.Sell,
+            Mode.Price,
+            _contractAddress,
+            _priceLimit
+        );
+    }
+
+    function createRecurringPortfolioPriceLimitedBuyJob(
+        uint64 _recurringInterval,
+        address _contractAddress,
+        uint256 _priceLimit
+    )
+        external
+        payable
+        mustPayCommission
+        mustHaveCorrectInputs(_recurringInterval)
+    {
+        _createRecurringJob(
+            _recurringInterval,
+            ContractTypes.Portfolio,
+            Operations.Buy,
+            Mode.Price,
+            _contractAddress,
+            _priceLimit
+        );
+    }
+
+    function createRecurringPortfolioPriceLimitedSellJob(
+        uint64 _recurringInterval,
+        address _contractAddress,
+        uint256 _priceLimit
+    )
+        external
+        payable
+        mustPayCommission
+        mustHaveCorrectInputs(_recurringInterval)
+    {
+        _createRecurringJob(
+            _recurringInterval,
+            ContractTypes.Portfolio,
+            Operations.Sell,
+            Mode.Price,
+            _contractAddress,
+            _priceLimit
         );
     }
 
@@ -266,14 +392,23 @@ contract Cron {
             "Job not ready for execution yet"
         );
 
-        if (job.contractType == ContractTypes.ERC20) {
-            _executeErc20Job(job);
-        } else if (job.contractType == ContractTypes.Portfolio) {
-            _executePortfolioJob(job);
-        } else if (job.contractType == ContractTypes.Mirrored) {
-            _executeMirroredJob(job);
+        if (job.mode == Mode.Amount) {
+            if (job.contractType == ContractTypes.ERC20) {
+                _executeErc20Job(job);
+            } else if (job.contractType == ContractTypes.Portfolio) {
+                _executePortfolioJob(job);
+            } else if (job.contractType == ContractTypes.Mirrored) {
+                _executeMirroredJob(job);
+            }
+        } else if (job.mode == Mode.Price) {
+            if (job.contractType == ContractTypes.ERC20) {
+                _executeErc20PriceLimitedJob(job);
+            } else if (job.contractType == ContractTypes.Portfolio) {
+                _executePortfolioPriceLimitedJob(job);
+            } else if (job.contractType == ContractTypes.Mirrored) {
+                _executeMirroredPriceLimitedJob(job);
+            }
         }
-
         jobs[_jobUserAddress][_jobIndex].lastExecution = block.timestamp;
     }
 
@@ -297,10 +432,12 @@ contract Cron {
                 _job.contractAddress,
                 _job.amount
             );
-            jobUserBalances[_job.ownerAddress] -= actualCost;
-            IERC20(_job.contractAddress).transfer(
+            _deductCommissionAndTransferTokenToOwner(
+                _job.contractAddress,
                 _job.ownerAddress,
-                _job.amount
+                _job.amount,
+                actualCost,
+                cronCommission
             );
         } else if (_job.operation == Operations.Sell) {
             require(cronCommission <= balance, "Insufficient user balance!");
@@ -308,7 +445,7 @@ contract Cron {
                 _job.contractAddress,
                 _job.amount
             );
-            _deductCommissionAndTransferToOwner(
+            _deductCommissionAndTransferNativeToOwner(
                 _job.ownerAddress,
                 received,
                 cronCommission
@@ -333,10 +470,17 @@ contract Cron {
             require(estimatedCost <= balance, "Insufficient user balance!");
 
             mirroredAsset.mint{value: cost + mirroredCommission}(_job.amount);
+            _deductCommissionAndTransferTokenToOwner(
+                _job.contractAddress,
+                _job.ownerAddress,
+                _job.amount,
+                cost + mirroredCommission,
+                cronCommission
+            );
         } else if (_job.operation == Operations.Sell) {
             require(cronCommission <= balance, "Insufficient user balance!");
             uint256 received = mirroredAsset.burn(_job.amount);
-            _deductCommissionAndTransferToOwner(
+            _deductCommissionAndTransferNativeToOwner(
                 _job.ownerAddress,
                 received,
                 cronCommission
@@ -358,16 +502,20 @@ contract Cron {
             );
 
             fund.buyShares{value: cost}(_job.amount);
-            reserve.deposit{value: cronCommission}();
-            fund.transfer(_job.ownerAddress, _job.amount);
-            jobUserBalances[_job.ownerAddress] -= cost;
+            _deductCommissionAndTransferTokenToOwner(
+                _job.contractAddress,
+                _job.ownerAddress,
+                _job.amount,
+                cost,
+                cronCommission
+            );
         } else if (_job.operation == Operations.Sell) {
             require(
                 cronCommission + fundCommission <= balance,
                 "Insufficient user balance!"
             );
             uint256 received = fund.sellShares(_job.amount);
-            _deductCommissionAndTransferToOwner(
+            _deductCommissionAndTransferNativeToOwner(
                 _job.ownerAddress,
                 received,
                 cronCommission
@@ -375,7 +523,116 @@ contract Cron {
         }
     }
 
-    function _deductCommissionAndTransferToOwner(
+    function _executeErc20PriceLimitedJob(Job memory _job) internal {
+        uint256 balance = jobUserBalances[_job.ownerAddress];
+        uint256 cronCommission = commission;
+
+        if (_job.operation == Operations.Buy) {
+            (uint256 price, ) = oracle.getPrice(_job.contractAddress);
+            uint8 decimals = TokenERC20(_job.contractAddress).decimals();
+            uint256 decimalScale = (10**decimals);
+            uint256 amountToBuy = ((_job.amount / price) / decimalScale) *
+                decimalScale;
+            uint256 estimatedCost = (price * amountToBuy) +
+                cronCommission +
+                1 ether;
+
+            require(estimatedCost <= balance, "Insufficient user balance!");
+
+            uint256 actualCost = _convertToErc20(
+                _job.contractAddress,
+                amountToBuy
+            );
+            _deductCommissionAndTransferTokenToOwner(
+                _job.contractAddress,
+                _job.ownerAddress,
+                amountToBuy,
+                actualCost,
+                cronCommission
+            );
+        } else if (_job.operation == Operations.Sell) {
+            // require(cronCommission <= balance, "Insufficient user balance!");
+            // uint256 received = _convertFromErc20(
+            //     _job.contractAddress,
+            //     _job.amount
+            // );
+            // _deductCommissionAndTransferNativeToOwner(
+            //     _job.ownerAddress,
+            //     received,
+            //     cronCommission
+            // );
+            // TODO
+        }
+    }
+
+    function _executeMirroredPriceLimitedJob(Job memory _job) internal {
+        Mirrored mirroredAsset = Mirrored(_job.contractAddress);
+        uint256 balance = jobUserBalances[_job.ownerAddress];
+        uint256 cronCommission = commission;
+        uint256 mirroredCommission = mirroredAsset.commission();
+        (uint256 price, ) = oracle.getPrice(_job.contractAddress);
+
+        // TODO
+        // if (_job.operation == Operations.Buy) {
+            // uint256 cost = price * _job.amount;
+            // uint256 estimatedCost = cost +
+            //     cronCommission +
+            //     mirroredCommission +
+            //     1 ether;
+
+            // require(estimatedCost <= balance, "Insufficient user balance!");
+
+            // mirroredAsset.mint{value: cost + mirroredCommission}(_job.amount);
+        //     _deductCommissionAndTransferTokenToOwner(
+        //         _job.contractAddress,
+        //         _job.ownerAddress,
+        //         _job.amount,
+        //         cost + mirroredCommission,
+        //         cronCommission
+        //     );
+        // } else if (_job.operation == Operations.Sell) {
+        //     require(cronCommission <= balance, "Insufficient user balance!");
+        //     uint256 received = mirroredAsset.burn(_job.amount);
+        //     _deductCommissionAndTransferNativeToOwner(
+        //         _job.ownerAddress,
+        //         received,
+        //         cronCommission
+        //     );
+        // }
+    }
+
+    function _executePortfolioPriceLimitedJob(Job memory _job) internal {
+        uint256 balance = jobUserBalances[_job.ownerAddress];
+        uint256 cronCommission = commission;
+        (, , uint256 fundCommission, ) = fund.properties();
+        // TODO
+        // if (_job.operation == Operations.Buy) {
+        //     uint256 cost = (fund.getSharePrice() * _job.amount) +
+        //         fundCommission;
+        //     require(
+        //         cost + cronCommission <= balance,
+        //         "Insufficient user balance!"
+        //     );
+
+        //     fund.buyShares{value: cost}(_job.amount);
+        //     reserve.deposit{value: cronCommission}();
+        //     fund.transfer(_job.ownerAddress, _job.amount);
+        //     jobUserBalances[_job.ownerAddress] -= cost;
+        // } else if (_job.operation == Operations.Sell) {
+        //     require(
+        //         cronCommission + fundCommission <= balance,
+        //         "Insufficient user balance!"
+        //     );
+        //     uint256 received = fund.sellShares(_job.amount);
+        //     _deductCommissionAndTransferNativeToOwner(
+        //         _job.ownerAddress,
+        //         received,
+        //         cronCommission
+        //     );
+        // }
+    }
+
+    function _deductCommissionAndTransferNativeToOwner(
         address _ownerAddress,
         uint256 _received,
         uint256 _commission
@@ -385,16 +642,30 @@ contract Cron {
         payable(_ownerAddress).transfer(_received - _commission);
     }
 
+    function _deductCommissionAndTransferTokenToOwner(
+        address _tokenAddress,
+        address _ownerAddress,
+        uint256 _received,
+        uint256 _cost,
+        uint256 _commission
+    ) internal {
+        reserve.deposit{value: _commission}();
+        jobUserBalances[_ownerAddress] -= (_commission + _cost);
+        IERC20(_tokenAddress).transfer(_ownerAddress, _received);
+    }
+
     function _createRecurringJob(
         uint64 _recurringInterval,
         ContractTypes _contractType,
         Operations _opertaion,
+        Mode _mode,
         address _contractAddress,
         uint256 _amount
     ) internal {
         Job memory newJob = Job(
             msg.sender,
             true,
+            _mode,
             _contractType,
             _contractAddress,
             _recurringInterval,

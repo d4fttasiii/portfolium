@@ -3,7 +3,6 @@ pragma solidity ^0.8.16;
 import "./interfaces/IUniswapV2Router02.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IERC721.sol";
-import "./Synthetic.sol";
 import "./Mirrored.sol";
 
 contract Treasury {
@@ -11,7 +10,6 @@ contract Treasury {
         Native,
         ERC20,
         ERC721,
-        Synthetic,
         Mirrored
     }
 
@@ -69,8 +67,6 @@ contract Treasury {
         } else if (assetType == 2) {
             assets[assetAddress] = Asset(assetAddress, AssetTypes.ERC721);
         } else if (assetType == 3) {
-            assets[assetAddress] = Asset(assetAddress, AssetTypes.Synthetic);
-        } else if (assetType == 4) {
             assets[assetAddress] = Asset(assetAddress, AssetTypes.Mirrored);
         }
     }
@@ -81,10 +77,6 @@ contract Treasury {
         onlyFund
     {
         Asset memory asset = assets[assetAddress];
-        if (asset.assetType == AssetTypes.Synthetic) {
-            Synthetic synthetic = Synthetic(assetAddress);
-            synthetic.mint{value: msg.value}(amount);
-        }
         if (asset.assetType == AssetTypes.Mirrored) {
             Mirrored mirrored = Mirrored(assetAddress);
             mirrored.mint{value: msg.value}(amount);
@@ -106,10 +98,6 @@ contract Treasury {
         onlyFund
     {
         Asset memory asset = assets[assetAddress];
-        if (asset.assetType == AssetTypes.Synthetic) {
-            Synthetic synthetic = Synthetic(assetAddress);
-            synthetic.burn(amount);
-        }
         if (asset.assetType == AssetTypes.Mirrored) {
             Mirrored mirrored = Mirrored(assetAddress);
             mirrored.burn(amount);
@@ -140,7 +128,7 @@ contract Treasury {
         }
         if (
             asset.assetType == AssetTypes.ERC20 ||
-            asset.assetType == AssetTypes.Synthetic
+            asset.assetType == AssetTypes.Mirrored
         ) {
             IERC20 token = IERC20(assetAddress);
             return token.balanceOf(address(this));

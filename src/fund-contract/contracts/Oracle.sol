@@ -9,7 +9,6 @@ contract Oracle {
     }
 
     address public ownerAddress;
-    address public applicationAddress;
 
     struct PriceUpdate {
         address assetAddress;
@@ -24,10 +23,11 @@ contract Oracle {
     mapping(address => PriceInfo) assetPrices;
     mapping(address => PriceOrigin) public assetPriceOrigin;
     mapping(address => address) public chainlinkPriceFeeds;
+    mapping(address => bool) public trustedAccounts;
 
-    constructor(address _applicationAddress) {
+    constructor(address _initTrustedAccount) {
         ownerAddress = msg.sender;
-        applicationAddress = _applicationAddress;
+        addTrustedAccount(_initTrustedAccount);
         assetPrices[address(1)] = PriceInfo(1, block.timestamp);
     }
 
@@ -38,10 +38,10 @@ contract Oracle {
         );
     }
 
-    function _onlyApplication() private view {
+    function _onlyTrustedAccounts() private view {
         require(
-            applicationAddress == msg.sender,
-            "Caller must be the application account!"
+            trustedAccounts[msg.sender],
+            "Caller must be a trusted account!"
         );
     }
 
@@ -50,20 +50,21 @@ contract Oracle {
         _;
     }
 
-    modifier onlyApplication() {
-        _onlyApplication();
+    modifier onlyTrustedAccounts() {
+        _onlyTrustedAccounts();
         _;
     }
 
-    function setApplicationAddress(address newApplicationAddress)
-        public
-        onlyOwner
-    {
-        applicationAddress = newApplicationAddress;
+    function addTrustedAccount(address _newAccount) public onlyOwner {
+        trustedAccounts[_newAccount] = true;
+    }
+
+    function toggleTrustedAccount(address _account) external onlyOwner {
+        trustedAccounts[_account] = !trustedAccounts[_account];
     }
 
     function setPriceOrigin(address assetAddress, uint8 priceOriginNr)
-        public
+        external
         onlyOwner
     {
         {
@@ -78,20 +79,20 @@ contract Oracle {
     function setChainlinkPriceFeedAddress(
         address assetAddress,
         address chainlinkPriceFeedAddress
-    ) public onlyOwner {
+    ) external onlyOwner {
         chainlinkPriceFeeds[assetAddress] = chainlinkPriceFeedAddress;
     }
 
     function setPrice(address assetAddress, uint256 newPrice)
         public
-        onlyApplication
+        onlyTrustedAccounts
     {
         assetPrices[assetAddress] = PriceInfo(newPrice, block.timestamp);
     }
 
     function setPrices(PriceUpdate[] memory priceUpdates)
-        public
-        onlyApplication
+        external
+        onlyTrustedAccounts
     {
         for (uint256 i = 0; i < priceUpdates.length; i++) {
             setPrice(priceUpdates[i].assetAddress, priceUpdates[i].newPrice);
@@ -99,7 +100,7 @@ contract Oracle {
     }
 
     function getPrice(address assetAddress)
-        public
+        external
         view
         returns (uint256 price, uint256 updatedAt)
     {
