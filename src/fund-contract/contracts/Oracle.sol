@@ -25,6 +25,8 @@ contract Oracle {
     mapping(address => address) public chainlinkPriceFeeds;
     mapping(address => bool) public trustedAccounts;
 
+    event PriceSet(address asset, uint256 newPrice);
+
     constructor(address _initTrustedAccount) {
         ownerAddress = msg.sender;
         addTrustedAccount(_initTrustedAccount);
@@ -83,11 +85,12 @@ contract Oracle {
         chainlinkPriceFeeds[assetAddress] = chainlinkPriceFeedAddress;
     }
 
-    function setPrice(address assetAddress, uint256 newPrice)
+    function setPrice(address _assetAddress, uint256 _price)
         public
         onlyTrustedAccounts
     {
-        assetPrices[assetAddress] = PriceInfo(newPrice, block.timestamp);
+        assetPrices[_assetAddress] = PriceInfo(_price, block.timestamp);
+        emit PriceSet(_assetAddress, _price);
     }
 
     function setPrices(PriceUpdate[] memory priceUpdates)

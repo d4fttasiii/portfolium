@@ -1,44 +1,16 @@
 const Treasury = artifacts.require("./Treasury.sol");
 const Oracle = artifacts.require("./Oracle.sol");
-const Synthetic = artifacts.require("./Synthetic.sol");
-const Fund = artifacts.require("./Fund.sol");
+const Portfolium = artifacts.require("./Portfolium.sol");
 const Reserve = artifacts.require("./Reserve.sol");
 const Mirrored = artifacts.require("./Mirrored.sol");
 
 module.exports = async (deployer, network, accounts) => {
-  const managerAddress = accounts[0];
   const applicationAddress = accounts[1];
   const uniswapAddress = "0xc165449713452E86aF36dC681a1C7C92eAE9c3b3";
 
   await deployer.deploy(Reserve);
   await deployer.deploy(Treasury, uniswapAddress);
   await deployer.deploy(Oracle, applicationAddress);
-
-  // Synthetics
-  await deployer.deploy(
-    Synthetic,
-    Oracle.address,
-    Treasury.address,
-    applicationAddress,
-    "D4FT Hodling",
-    "1337",
-    "1337",
-    "Tesla, Inc.",
-    "synTSLA",
-    0
-  );
-  await deployer.deploy(
-    Synthetic,
-    Oracle.address,
-    Treasury.address,
-    applicationAddress,
-    "D4FT Hodling",
-    "1337",
-    "1337",
-    "Advanced Micro Devices, Inc.",
-    "synAMD",
-    3
-  );
 
   // Mirrored
   await deployer.deploy(
@@ -60,25 +32,23 @@ module.exports = async (deployer, network, accounts) => {
     1
   );
 
-  // Fund
+  // Portolium
   await deployer.deploy(
-    Fund,
+    Portfolium,
     Oracle.address,
     Treasury.address,
     Reserve.address,
-    managerAddress,
-    applicationAddress,
-    "Enceladus",
-    "ENCE",
+    10000,
     "Polygon",
-    "MATIC"
+    "MATIC",
+    18
   );
 
-  // Set fund address in treasury
+  // Set portfolium address in treasury
   const treasury = await Treasury.deployed();
-  await treasury.setFundAddress(Fund.address);
+  // await treasury.setFundAddress(Portfolium.address);
 
-  console.log(`fund: "${Fund.address}",`);
+  console.log(`portfolium: "${Portfolium.address}",`);
   console.log(`oracle: "${Oracle.address}",`);
   console.log(`treasury: "${Treasury.address}",`);
   console.log(`reserve: "${Reserve.address}",`);

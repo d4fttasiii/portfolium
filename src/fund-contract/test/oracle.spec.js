@@ -1,4 +1,7 @@
 const Oracle = artifacts.require("Oracle");
+const web3 = require('web3');
+
+const nativeAccount = new web3().eth.accounts.create();
 
 contract("Oracle", (accounts) => {
     it("should set default addresses correctly", async () => {
@@ -19,31 +22,25 @@ contract("Oracle", (accounts) => {
         );
     });
 
-    it("should set price for native asset by application address", async () => {
+    it("should set price for asset by application address", async () => {
         const oracleInstance = await Oracle.deployed();
-        const nativeAssetAddress = "0x0000000000000000000000000000000000000001";
 
         await oracleInstance
-            .setPrice
-            .call(nativeAssetAddress, 1337, { from: accounts[1] });
+            .setPrice(nativeAccount.address, 1337, { from: accounts[1] });
 
         const nativePrice = await oracleInstance
-            .getPrice
-            .call(nativeAssetAddress);
+            .getPrice(nativeAccount.address);
 
-        console.log(nativePrice);
-
-        assert.equal(nativePrice[0], 1337, "Native price is not set");
+        assert.equal(nativePrice[0], 1337, "Price was not set for: " + nativeAccount.address);
     });
 
-    it("should not be able to set price for native asset", async () => {
+    it("should not be able to set price for asset", async () => {
         const oracleInstance = await Oracle.deployed();
-        const nativeAssetAddress = "0x0000000000000000000000000000000000000001";
 
         try {
             await oracleInstance
                 .setPrice
-                .call(nativeAssetAddress, 1, { from: accounts[9] });
+                .call(nativeAccount.address, 1, { from: accounts[9] });
         }
         catch (err) {
             assert.equal(

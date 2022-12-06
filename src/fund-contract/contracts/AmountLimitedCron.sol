@@ -2,7 +2,7 @@ pragma solidity ^0.8.16;
 
 import "./interfaces/IERC20.sol";
 import "./interfaces/IUniswapV2Router02.sol";
-import "./Fund.sol";
+import "./Portfolium.sol";
 import "./Reserve.sol";
 import "./Oracle.sol";
 import "./Mirrored.sol";
@@ -36,7 +36,7 @@ contract AmountLimitedCron {
     address public applicationAddress;
     uint256 public commission;
 
-    Fund public fund;
+    Portfolium public fund;
     Reserve public reserve;
     Oracle public oracle;
     IUniswapV2Router02 public uniswapRouter;
@@ -47,7 +47,7 @@ contract AmountLimitedCron {
     mapping(address => Job[]) public jobs;
 
     constructor(
-        Fund _fund,
+        Portfolium _fund,
         Reserve _reserve,
         Oracle _oracle,
         address _uniswapRouterAddress,
@@ -388,15 +388,15 @@ contract AmountLimitedCron {
         uint256 cronCommission = commission;
 
         if (_job.operation == Operations.Buy) {
-            (, , uint256 fundCommission, ) = fund.properties();
-            uint256 cost = (fund.getSharePrice() * _job.amount) +
-                fundCommission;
+            uint256 fundCommission = fund.platformCommission();
+            uint256 cost = (fund.getSharePrice(_job.contractAddress) *
+                _job.amount) + fundCommission;
             require(
                 cost + cronCommission <= balance,
                 "Insufficient user balance!"
             );
 
-            fund.buyShares{value: cost}(_job.amount);
+            fund.buyShares{value: cost}(_job.contractAddress, _job.amount);
             _deductCommissionAndTransferTokenToOwner(
                 _job.contractAddress,
                 _job.ownerAddress,
@@ -406,7 +406,10 @@ contract AmountLimitedCron {
             );
         } else if (_job.operation == Operations.Sell) {
             require(cronCommission <= balance, "Insufficient user balance!");
-            uint256 received = fund.sellShares(_job.amount);
+            uint256 received = fund.sellShares(
+                _job.contractAddress,
+                _job.amount
+            );
             _deductCommissionAndTransferNativeToOwner(
                 _job.ownerAddress,
                 received,

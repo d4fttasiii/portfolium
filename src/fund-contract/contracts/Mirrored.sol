@@ -47,7 +47,7 @@ contract Mirrored is TokenERC20 {
         _;
     }
 
-    function updatecommission(uint256 newcommission) external onlyOwner {
+    function updateCommission(uint256 newcommission) external onlyOwner {
         commission = newcommission;
     }
 

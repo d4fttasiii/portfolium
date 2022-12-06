@@ -9,7 +9,6 @@ contract Treasury {
     enum AssetTypes {
         Native,
         ERC20,
-        ERC721,
         Mirrored
     }
 
@@ -21,8 +20,9 @@ contract Treasury {
     IUniswapV2Router02 public uniswapRouter;
 
     address public ownerAddress;
-    address public fundAddress;
+    address public portfoliumAddress;
 
+    mapping(address => mapping(address => uint256)) public balances;
     mapping(address => Asset) assets;
 
     constructor(address _uniswapRouterAddress) {
@@ -43,20 +43,20 @@ contract Treasury {
         _;
     }
 
-    function _onlyFund() private view {
-        require(msg.sender == fundAddress, "Caller must be the fund contract!");
+    function _onlyPortfolium() private view {
+        require(msg.sender == portfoliumAddress, "Caller must be the Portfolium contract!");
     }
 
-    modifier onlyFund() {
-        _onlyFund();
+    modifier onlyPortfolium() {
+        _onlyPortfolium();
         _;
     }
 
-    function setFundAddress(address newfundAddress) public onlyOwner {
-        fundAddress = newfundAddress;
+    function setPortoliumAddress(address _portfoliumAddresss) public onlyOwner {
+        portfoliumAddress = _portfoliumAddresss;
     }
 
-    function addAsset(address assetAddress, uint8 assetType) public onlyFund {
+    function addAsset(address assetAddress, uint8 assetType) public onlyPortfolium {
         require(
             assetType >= 1 && assetType <= 4,
             "assetType id should be between 1 and 4"
@@ -65,58 +65,55 @@ contract Treasury {
         if (assetType == 1) {
             assets[assetAddress] = Asset(assetAddress, AssetTypes.ERC20);
         } else if (assetType == 2) {
-            assets[assetAddress] = Asset(assetAddress, AssetTypes.ERC721);
-        } else if (assetType == 3) {
             assets[assetAddress] = Asset(assetAddress, AssetTypes.Mirrored);
         }
     }
 
-    function buyAsset(address assetAddress, uint256 amount)
-        public
-        payable
-        onlyFund
-    {
-        Asset memory asset = assets[assetAddress];
+    function buyAsset(
+        address _ownerAddress,
+        address _assetAddress,
+        uint256 _amount
+    ) public payable onlyPortfolium {
+        Asset memory asset = assets[_assetAddress];
         if (asset.assetType == AssetTypes.Mirrored) {
-            Mirrored mirrored = Mirrored(assetAddress);
-            mirrored.mint{value: msg.value}(amount);
+            Mirrored mirrored = Mirrored(_assetAddress);
+            uint256 minted = mirrored.mint{value: msg.value}(_amount);
+            balances[_ownerAddress][asset.assetAddress] += minted;
         }
         if (asset.assetType == AssetTypes.ERC20) {
-            convertToErc20(assetAddress, amount);
+            uint256 received = _convertToErc20(_assetAddress, _amount);
+            balances[_ownerAddress][asset.assetAddress] += received;
         }
-        // if (asset.assetType == AssetTypes.ERC721) {
-        //     // ignore for now
-        // }
         if (asset.assetType == AssetTypes.Native) {
-            // just hodl nothing TODO
+            balances[_ownerAddress][asset.assetAddress] += _amount;
         }
     }
 
-    function sellAsset(address assetAddress, uint256 amount)
-        public
-        payable
-        onlyFund
-    {
-        Asset memory asset = assets[assetAddress];
+    function sellAsset(
+        address _ownerAddress,
+        address _assetAddress,
+        uint256 _amount
+    ) public payable onlyPortfolium {
+        // TODO: Check if balance available
+        Asset memory asset = assets[_assetAddress];
         if (asset.assetType == AssetTypes.Mirrored) {
-            Mirrored mirrored = Mirrored(assetAddress);
-            mirrored.burn(amount);
+            Mirrored mirrored = Mirrored(_assetAddress);
+            uint256 burned = mirrored.burn(_amount);
+            balances[_ownerAddress][asset.assetAddress] -= burned;
         }
         if (asset.assetType == AssetTypes.ERC20) {
-            convertFromErc20(assetAddress, amount);
+            uint256 sold = _convertFromErc20(_assetAddress, _amount);
+            balances[_ownerAddress][asset.assetAddress] -= sold;
         }
-        // if (asset.assetType == AssetTypes.ERC721) {
-        //     // ignore for now
-        // }
         if (asset.assetType == AssetTypes.Native) {
-            // just hodl nothing TODO
+            balances[_ownerAddress][asset.assetAddress] -= _amount;
         }
     }
 
     function withdraw(address recipient, uint256 amount)
         public
         payable
-        onlyFund
+        onlyPortfolium
     {
         payable(recipient).transfer(amount);
     }
@@ -133,19 +130,22 @@ contract Treasury {
             IERC20 token = IERC20(assetAddress);
             return token.balanceOf(address(this));
         }
-        if (asset.assetType == AssetTypes.ERC721) {
-            IERC721 token = IERC721(assetAddress);
-            return token.balanceOf(address(this));
-        }
 
         return address(this).balance;
     }
 
-    function convertToErc20(address assetAddress, uint256 amount) internal {
+    receive() external payable {}
+
+    // ---------- HELPERS ----------
+
+    function _convertToErc20(address assetAddress, uint256 amount)
+        internal
+        returns (uint256)
+    {
         uint256 deadline = block.timestamp + 30;
-        uniswapRouter.swapETHForExactTokens(
+        uint256[] memory amounts = uniswapRouter.swapETHForExactTokens(
             amount,
-            getPathForNativeToErc20(assetAddress),
+            _getPathForNativeToErc20(assetAddress),
             address(this),
             deadline
         );
@@ -153,22 +153,27 @@ contract Treasury {
         // refund leftover ETH to user
         (bool success, ) = msg.sender.call{value: address(this).balance}("");
         require(success, "refund failed");
+
+        return amounts[amounts.length - 1];
     }
 
-    function convertFromErc20(address assetAddress, uint256 amount) internal {
+    function _convertFromErc20(address assetAddress, uint256 amount)
+        internal
+        returns (uint256)
+    {
         uint256 deadline = block.timestamp + 30;
-        uniswapRouter.swapExactTokensForETH(
+        uint256[] memory amounts = uniswapRouter.swapExactTokensForETH(
             amount,
             1,
-            getPathForErc20ToNative(assetAddress),
+            _getPathForErc20ToNative(assetAddress),
             address(this),
             deadline
         );
+
+        return amounts[amounts.length - 1];
     }
 
-    receive() external payable {}
-
-    function getPathForNativeToErc20(address assetAddress)
+    function _getPathForNativeToErc20(address assetAddress)
         private
         view
         returns (address[] memory)
@@ -180,7 +185,7 @@ contract Treasury {
         return path;
     }
 
-    function getPathForErc20ToNative(address assetAddress)
+    function _getPathForErc20ToNative(address assetAddress)
         private
         view
         returns (address[] memory)
