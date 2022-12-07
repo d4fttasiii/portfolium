@@ -388,9 +388,10 @@ contract AmountLimitedCron {
         uint256 cronCommission = commission;
 
         if (_job.operation == Operations.Buy) {
-            uint256 fundCommission = fund.platformCommission();
-            uint256 cost = (fund.getSharePrice(_job.contractAddress) *
-                _job.amount) + fundCommission;
+            uint256 cost = fund.calculateBuyingCost(
+                _job.contractAddress,
+                _job.amount
+            );
             require(
                 cost + cronCommission <= balance,
                 "Insufficient user balance!"

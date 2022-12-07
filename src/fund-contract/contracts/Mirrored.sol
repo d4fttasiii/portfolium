@@ -52,10 +52,11 @@ contract Mirrored is TokenERC20 {
     }
 
     function mint(uint256 amount) external payable returns (uint256) {
-        (uint256 price, ) = oracle.getPrice(address(this));
-        uint256 cost = (price * amount) + commission;
-
-        require(cost <= msg.value, "Insufficient amount transferred!");
+        uint256 cost = calculateBuyingCost(amount);
+        require(
+            cost <= msg.value,
+            "Unable to mint insufficient amount transferred!"
+        );
 
         totalSupply += amount;
         balanceOf[msg.sender] += amount;
@@ -87,5 +88,16 @@ contract Mirrored is TokenERC20 {
         emit Transfer(address(this), address(0), amount);
 
         return withdrawalAmount;
+    }
+
+    function calculateBuyingCost(uint256 _amount)
+        public
+        view
+        returns (uint256)
+    {
+        (uint256 price, ) = oracle.getPrice(address(this));
+        uint256 cost = (price * _amount) + commission;
+
+        return cost;
     }
 }

@@ -2,10 +2,11 @@ const Treasury = artifacts.require("Treasury");
 const Mirrored = artifacts.require("Mirrored");
 const Oracle = artifacts.require("Oracle");
 const Portfolium = artifacts.require("Portfolium");
+const Reserve = artifacts.require("Reserve");
 
 const web3 = require('web3');
 
-const tokenPrice = 10000000000;
+const tokenPrice = 5;
 
 contract("Portfolium", (accounts) => {
     before(async () => {
@@ -13,9 +14,12 @@ contract("Portfolium", (accounts) => {
         const mirrored = await Mirrored.deployed();
         const treasury = await Treasury.deployed();
         const portfolium = await Portfolium.deployed();
+        const reserve = await Reserve.deployed();
 
         await oracle.setPrice(mirrored.address, tokenPrice, { from: accounts[1] });
         await treasury.setPortfoliumAddress(portfolium.address);
+        await mirrored.updateCommission(8);
+        await reserve.addAccount(mirrored.address);
     });
 
     it("should set default addresses correctly", async () => {
@@ -70,7 +74,7 @@ contract("Portfolium", (accounts) => {
         const portfolium = await Portfolium.deployed();
         const commission = await portfolium.platformCommission.call();
         await portfolium.createPortfolio("Sh1tFoli0", "SHT", 1000, { from: accounts[3], value: commission });
-    
+
         const portfolio = await portfolium.portfolios.call(accounts[3]);
         assert.equal(
             portfolio.name,
@@ -93,12 +97,78 @@ contract("Portfolium", (accounts) => {
         const portfolium = await Portfolium.deployed();
         const mirrored = await Mirrored.deployed();
         await portfolium.addAsset(mirrored.address, { from: accounts[3] });
-    
+
         const portfolio = await portfolium.portfolios.call(accounts[3]);
         assert.equal(
             portfolio.assetCount,
             2,
             "Portfolio assetCount incorrect"
+        );
+    });
+
+    it("user should update portfolio allocation", async () => {
+        const portfolium = await Portfolium.deployed();
+        const mirrored = await Mirrored.deployed();
+        await portfolium.updateAllocation(mirrored.address, 10, { from: accounts[3] });
+
+        const assetAlloc = await portfolium.portfolioAssetAllocations.call(accounts[3], mirrored.address);
+        assert.equal(
+            assetAlloc.perShareAmount.toNumber(),
+            10,
+            "Allocation was not updated correctly"
+        );
+    });
+
+    it("another user should like portfolio", async () => {
+        const portfolium = await Portfolium.deployed();
+        await portfolium.likePortfolio(accounts[3], { from: accounts[4] });
+        await portfolium.likePortfolio(accounts[3], { from: accounts[5] });
+
+        const portfolio = await portfolium.portfolios.call(accounts[3]);
+        assert.equal(
+            portfolio.likes,
+            2,
+            "Number of likes is incorrect"
+        );
+    });
+
+    it("another user should dislike portfolio", async () => {
+        const portfolium = await Portfolium.deployed();
+        await portfolium.dislikePortfolio(accounts[3], { from: accounts[6] });
+        await portfolium.dislikePortfolio(accounts[3], { from: accounts[7] });
+
+        const portfolio = await portfolium.portfolios.call(accounts[3]);
+        assert.equal(
+            portfolio.dislikes,
+            2,
+            "Number of dislikes is incorrect"
+        );
+    });
+
+    it("another user should buy shares from a portfolio", async () => {
+        const portfolium = await Portfolium.deployed();
+        const tokensToBuy = 5;
+        const cost = (await portfolium.calculateBuyingCost(accounts[3], tokensToBuy)).toNumber();
+        await portfolium.buyShares(accounts[3], tokensToBuy, { from: accounts[6], value: cost });
+
+        const balance = await portfolium.portfolioBalanceOf.call(accounts[3], accounts[6]);
+        assert.equal(
+            balance.toNumber(),
+            5,
+            "Balance is incorrect"
+        );
+    });
+
+    it("another user should sell shares from a portfolio", async () => {
+        const portfolium = await Portfolium.deployed();
+        const commission = await portfolium.platformCommission.call();
+        await portfolium.sellShares(accounts[3], 1, { from: accounts[6], value: commission.toNumber(), });
+
+        const balance = await portfolium.portfolioBalanceOf.call(accounts[3], accounts[6]);
+        assert.equal(
+            balance.toNumber(),
+            4,
+            "Balance is incorrect"
         );
     });
 });

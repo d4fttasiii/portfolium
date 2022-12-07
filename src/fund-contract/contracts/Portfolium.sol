@@ -52,9 +52,11 @@ contract Portfolium {
     mapping(address => Portfolio) public portfolios;
     mapping(address => mapping(address => bool)) public portfolioAssets;
     mapping(address => address[]) public portfolioAssetAddresses;
-    mapping(address => mapping(address => AssetAllocation)) portfolioAssetAllocations;
+    mapping(address => mapping(address => AssetAllocation))
+        public portfolioAssetAllocations;
     mapping(address => mapping(address => uint256)) public portfolioBalanceOf;
-    mapping(address => mapping(address => PortfolioInteractions)) portfolioInteractions;
+    mapping(address => mapping(address => PortfolioInteractions))
+        public portfolioInteractions;
 
     Treasury public treasury;
     Reserve public reserve;
@@ -375,14 +377,11 @@ contract Portfolium {
         payable
         mustBeExistingPortfolio(_portfolioAddress)
     {
-        uint256 price = getSharePrice(_portfolioAddress);
-        uint256 cost = (price * _amount) + platformCommission;
-        {
-            require(
-                cost <= msg.value,
-                "Cost of shares is exceeds transferred amount!"
-            );
-        }
+        uint256 cost = calculateBuyingCost(_portfolioAddress, _amount);
+        require(
+            cost <= msg.value,
+            "Cost of shares is exceeds transferred amount!"
+        );
         portfolios[_portfolioAddress].totalSupply += _amount;
         portfolioBalanceOf[_portfolioAddress][msg.sender] += _amount;
         reserve.deposit{value: platformCommission}();
@@ -396,7 +395,7 @@ contract Portfolium {
         mustBeExistingPortfolio(_portfolioAddress)
         returns (uint256)
     {
-        uint256 price = getSharePrice(_portfolioAddress);
+        uint256 price = getShareValue(_portfolioAddress);
         uint256 received = (price * _amount);
         portfolios[_portfolioAddress].totalSupply -= _amount;
         portfolioBalanceOf[_portfolioAddress][msg.sender] -= _amount;
@@ -416,11 +415,11 @@ contract Portfolium {
         returns (uint256)
     {
         uint256 totalSupply = portfolios[_portfolioAddress].totalSupply;
-        uint256 price = getSharePrice(_portfolioAddress);
+        uint256 price = getShareValue(_portfolioAddress);
         return price * totalSupply;
     }
 
-    function getSharePrice(address _portfolioAddress)
+    function calculateBuyingCost(address _portfolioAddress, uint256 _amount)
         public
         view
         returns (uint256)
@@ -442,8 +441,41 @@ contract Portfolium {
                 _portfolioAddress
             ][asset.assetAddress].perShareAmount;
             // TODO: Test scaling with 10+ decimal assets
-            uint256 price = (perShareAmount * assetPrice) /
-                (10**asset.decimals);
+
+            if (asset.assetType == AssetTypes.Mirrored) {
+                Mirrored mirrored = Mirrored(asset.assetAddress);
+                sharePrice += mirrored.calculateBuyingCost(_amount);
+            } else if (asset.assetType == AssetTypes.ERC20) {
+                uint256 price = (perShareAmount * assetPrice);
+                sharePrice += price * _amount;
+            }
+        }
+        return (sharePrice += platformCommission);
+    }
+
+    function getShareValue(address _portfolioAddress)
+        public
+        view
+        returns (uint256)
+    {
+        uint16 selectedPortfolioAssetCount = portfolios[_portfolioAddress]
+            .assetCount;
+        address[]
+            memory selectedPortfolioAssetAddresses = portfolioAssetAddresses[
+                _portfolioAddress
+            ];
+        uint256 sharePrice = 0;
+
+        for (uint256 i = 0; i < selectedPortfolioAssetCount; i++) {
+            Asset memory asset = availableAssets[
+                selectedPortfolioAssetAddresses[i]
+            ];
+            (uint256 assetPrice, ) = oracle.getPrice(asset.assetAddress);
+            uint256 perShareAmount = portfolioAssetAllocations[
+                _portfolioAddress
+            ][asset.assetAddress].perShareAmount;
+            // TODO: Test scaling with 10+ decimal assets
+            uint256 price = (perShareAmount * assetPrice);
             sharePrice += price;
         }
         return sharePrice;
@@ -466,10 +498,15 @@ contract Portfolium {
                 _portfolioAddress
             ][asset.assetAddress].perShareAmount;
             if (perShareAmount > 0) {
-                (uint256 price, ) = oracle.getPrice(asset.assetAddress);
                 uint256 amountToBuy = perShareAmount * _amount;
-                // TODO: Test scaling with 10+ decimal assets
-                uint256 cost = (amountToBuy * price) / (10**asset.decimals);
+                uint256 cost = 0;
+                if (asset.assetType == AssetTypes.Mirrored) {
+                    Mirrored mirrored = Mirrored(asset.assetAddress);
+                    cost = mirrored.calculateBuyingCost(amountToBuy);
+                } else {
+                    (uint256 price, ) = oracle.getPrice(asset.assetAddress);
+                    cost = (amountToBuy * price);
+                }
                 treasury.buyAsset{value: cost}(
                     _portfolioAddress,
                     asset.assetAddress,
