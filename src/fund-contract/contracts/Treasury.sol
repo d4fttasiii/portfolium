@@ -23,7 +23,7 @@ contract Treasury {
     address public portfoliumAddress;
 
     mapping(address => mapping(address => uint256)) public balances;
-    mapping(address => Asset) assets;
+    mapping(address => Asset) public assets;
 
     constructor(address _uniswapRouterAddress) {
         ownerAddress = msg.sender;
@@ -44,7 +44,10 @@ contract Treasury {
     }
 
     function _onlyPortfolium() private view {
-        require(msg.sender == portfoliumAddress, "Caller must be the Portfolium contract!");
+        require(
+            msg.sender == portfoliumAddress,
+            "Caller must be the Portfolium contract!"
+        );
     }
 
     modifier onlyPortfolium() {
@@ -52,21 +55,16 @@ contract Treasury {
         _;
     }
 
-    function setPortoliumAddress(address _portfoliumAddresss) public onlyOwner {
+    function setPortfoliumAddress(address _portfoliumAddresss) public onlyOwner {
         portfoliumAddress = _portfoliumAddresss;
     }
 
-    function addAsset(address assetAddress, uint8 assetType) public onlyPortfolium {
-        require(
-            assetType >= 1 && assetType <= 4,
-            "assetType id should be between 1 and 4"
-        );
+    function addERC20Asset(address assetAddress) public onlyPortfolium {
+        assets[assetAddress] = Asset(assetAddress, AssetTypes.ERC20);
+    }
 
-        if (assetType == 1) {
-            assets[assetAddress] = Asset(assetAddress, AssetTypes.ERC20);
-        } else if (assetType == 2) {
-            assets[assetAddress] = Asset(assetAddress, AssetTypes.Mirrored);
-        }
+    function addMirroredAsset(address assetAddress) public onlyPortfolium {
+        assets[assetAddress] = Asset(assetAddress, AssetTypes.Mirrored);
     }
 
     function buyAsset(

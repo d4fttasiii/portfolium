@@ -8,7 +8,7 @@ contract Reserve {
 
     constructor() {
         ownerAddress = msg.sender;
-        addAcount(msg.sender);
+        addAccount(msg.sender);
     }
 
     function _onlyOwner() private view {
@@ -32,7 +32,7 @@ contract Reserve {
         _;
     }
 
-    function addAcount(address accountAddress) public onlyOwner {
+    function addAccount(address accountAddress) public onlyOwner {
         accessingAccounts[accountAddress] = true;
         accessingAccountAddresses.push(accountAddress);
         accessingAccountCount++;

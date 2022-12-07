@@ -3,6 +3,7 @@ pragma solidity ^0.8.16;
 import "./Oracle.sol";
 import "./Treasury.sol";
 import "./Reserve.sol";
+import "./Mirrored.sol";
 
 contract Portfolium {
     enum AssetTypes {
@@ -85,6 +86,8 @@ contract Portfolium {
     }
 
     // ---------- EVENTS ----------
+
+    event PortfolioCreated(address indexed owner, string name);
 
     // ---------- MODIFIERS ----------
 
@@ -169,44 +172,48 @@ contract Portfolium {
         platformCommission = _platformCommission;
     }
 
-    function addSupportedERC20Asset(
-        address _assetAddress,
-        string memory _name,
-        string memory _symbol,
-        uint8 _decimals
-    ) external onlyOwner mustBeNewAsset(_assetAddress) {
-        require(_decimals <= 18, "Max number of decimals is 18!");
-
+    function addSupportedERC20Asset(address _assetAddress)
+        external
+        onlyOwner
+        mustBeNewAsset(_assetAddress)
+    {
+        TokenERC20 token = TokenERC20(_assetAddress);
         Asset memory asset = Asset(
             _assetAddress,
-            _name,
-            _symbol,
-            _decimals,
+            token.name(),
+            token.symbol(),
+            token.decimals(),
             AssetTypes.ERC20
         );
         availableAssetAddresses[_assetAddress] = true;
         availableAssets[_assetAddress] = asset;
         availableAssetCount++;
+        treasury.addERC20Asset(_assetAddress);
     }
 
-    function addSupportedMirroredAsset(
-        address _assetAddress,
-        string memory _name,
-        string memory _symbol,
-        uint8 _decimals
-    ) external onlyOwner mustBeNewAsset(_assetAddress) {
-        require(_decimals <= 18, "Max number of decimals is 18!");
+    function addSupportedMirroredAsset(address _assetAddress)
+        external
+        onlyOwner
+        mustBeNewAsset(_assetAddress)
+    {
+        Mirrored mirrored = Mirrored(_assetAddress);
+        (
+            string memory assetName,
+            string memory assetSymbol,
+            uint8 decimals
+        ) = mirrored.assetDetails();
 
         Asset memory asset = Asset(
             _assetAddress,
-            _name,
-            _symbol,
-            _decimals,
+            assetName,
+            assetSymbol,
+            decimals,
             AssetTypes.Mirrored
         );
         availableAssetAddresses[_assetAddress] = true;
         availableAssets[_assetAddress] = asset;
         availableAssetCount++;
+        treasury.addMirroredAsset(_assetAddress);
     }
 
     function removeSupportedAsset(address _assetAddress) external onlyOwner {
@@ -239,6 +246,7 @@ contract Portfolium {
         portfolios[msg.sender] = portfolio;
         portfolioAssets[msg.sender][address(1)] = true;
         portfolioAssetAddresses[msg.sender].push(address(1));
+        emit PortfolioCreated(msg.sender, _name);
     }
 
     function addAsset(address _assetAddress)

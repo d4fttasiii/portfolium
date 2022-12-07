@@ -19,17 +19,8 @@ module.exports = async (deployer, network, accounts) => {
     Reserve.address,
     1000000000,
     "Netflix, Inc.",
-    "synNFLX",
+    "mNFLX",
     2
-  );  
-  await deployer.deploy(
-    Mirrored,
-    Oracle.address,
-    Reserve.address,
-    1000000000,
-    "NVIDIA Corporation",
-    "synNVDA",
-    1
   );
 
   // Portolium
