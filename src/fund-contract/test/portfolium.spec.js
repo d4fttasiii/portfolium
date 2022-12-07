@@ -4,9 +4,7 @@ const Oracle = artifacts.require("Oracle");
 const Portfolium = artifacts.require("Portfolium");
 const Reserve = artifacts.require("Reserve");
 
-const web3 = require('web3');
-
-const tokenPrice = 5;
+const tokenPrice = 5000;
 
 contract("Portfolium", (accounts) => {
     before(async () => {
@@ -119,36 +117,11 @@ contract("Portfolium", (accounts) => {
         );
     });
 
-    it("another user should like portfolio", async () => {
-        const portfolium = await Portfolium.deployed();
-        await portfolium.likePortfolio(accounts[3], { from: accounts[4] });
-        await portfolium.likePortfolio(accounts[3], { from: accounts[5] });
-
-        const portfolio = await portfolium.portfolios.call(accounts[3]);
-        assert.equal(
-            portfolio.likes,
-            2,
-            "Number of likes is incorrect"
-        );
-    });
-
-    it("another user should dislike portfolio", async () => {
-        const portfolium = await Portfolium.deployed();
-        await portfolium.dislikePortfolio(accounts[3], { from: accounts[6] });
-        await portfolium.dislikePortfolio(accounts[3], { from: accounts[7] });
-
-        const portfolio = await portfolium.portfolios.call(accounts[3]);
-        assert.equal(
-            portfolio.dislikes,
-            2,
-            "Number of dislikes is incorrect"
-        );
-    });
-
     it("another user should buy shares from a portfolio", async () => {
         const portfolium = await Portfolium.deployed();
         const tokensToBuy = 5;
         const cost = (await portfolium.calculateBuyingCost(accounts[3], tokensToBuy)).toNumber();
+        console.log(cost);
         await portfolium.buyShares(accounts[3], tokensToBuy, { from: accounts[6], value: cost });
 
         const balance = await portfolium.portfolioBalanceOf.call(accounts[3], accounts[6]);
@@ -161,13 +134,14 @@ contract("Portfolium", (accounts) => {
 
     it("another user should sell shares from a portfolio", async () => {
         const portfolium = await Portfolium.deployed();
-        const commission = await portfolium.platformCommission.call();
-        await portfolium.sellShares(accounts[3], 1, { from: accounts[6], value: commission.toNumber(), });
+        const cost = await portfolium._calculatePayoutPrice(accounts[3], 3);
+        console.log(cost.toNumber());
+        await portfolium.sellShares(accounts[3], 3, { from: accounts[6], });
 
         const balance = await portfolium.portfolioBalanceOf.call(accounts[3], accounts[6]);
         assert.equal(
             balance.toNumber(),
-            4,
+            2,
             "Balance is incorrect"
         );
     });

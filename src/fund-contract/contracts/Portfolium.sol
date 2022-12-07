@@ -12,12 +12,6 @@ contract Portfolium {
         Mirrored
     }
 
-    enum PortfolioInteractions {
-        None,
-        Like,
-        Dislike
-    }
-
     struct AssetAllocation {
         address assetAddress;
         uint256 perShareAmount;
@@ -37,8 +31,6 @@ contract Portfolium {
         string symbol;
         uint16 assetCount;
         uint256 totalSupply;
-        uint64 likes;
-        uint64 dislikes;
         uint256 commission;
     }
 
@@ -55,8 +47,6 @@ contract Portfolium {
     mapping(address => mapping(address => AssetAllocation))
         public portfolioAssetAllocations;
     mapping(address => mapping(address => uint256)) public portfolioBalanceOf;
-    mapping(address => mapping(address => PortfolioInteractions))
-        public portfolioInteractions;
 
     Treasury public treasury;
     Reserve public reserve;
@@ -240,8 +230,6 @@ contract Portfolium {
             symbol: _symbol,
             assetCount: 1,
             totalSupply: 0,
-            likes: 0,
-            dislikes: 0,
             commission: _initCommission,
             owner: msg.sender
         });
@@ -306,70 +294,6 @@ contract Portfolium {
         }
     }
 
-    // ---------- PORTFOLIO INTERACTIONS ----------
-
-    function likePortfolio(address _portfolioAddress) external {
-        PortfolioInteractions currentPortfolioInteraction = portfolioInteractions[
-                _portfolioAddress
-            ][msg.sender];
-
-        require(
-            currentPortfolioInteraction == PortfolioInteractions.None ||
-                currentPortfolioInteraction == PortfolioInteractions.Dislike,
-            ""
-        );
-
-        portfolios[_portfolioAddress].likes++;
-        if (currentPortfolioInteraction == PortfolioInteractions.Dislike) {
-            portfolios[_portfolioAddress].dislikes--;
-        }
-        portfolioInteractions[_portfolioAddress][
-            msg.sender
-        ] = PortfolioInteractions.Like;
-    }
-
-    function dislikePortfolio(address _portfolioAddress) external {
-        PortfolioInteractions currentPortfolioInteraction = portfolioInteractions[
-                _portfolioAddress
-            ][msg.sender];
-
-        require(
-            currentPortfolioInteraction == PortfolioInteractions.None ||
-                currentPortfolioInteraction == PortfolioInteractions.Like,
-            ""
-        );
-
-        portfolios[_portfolioAddress].dislikes++;
-        if (currentPortfolioInteraction == PortfolioInteractions.Like) {
-            portfolios[_portfolioAddress].likes--;
-        }
-        portfolioInteractions[_portfolioAddress][
-            msg.sender
-        ] = PortfolioInteractions.Dislike;
-    }
-
-    function resetPortfolioInteraction(address _portfolioAddress) external {
-        PortfolioInteractions currentPortfolioInteraction = portfolioInteractions[
-                _portfolioAddress
-            ][msg.sender];
-        require(
-            currentPortfolioInteraction == PortfolioInteractions.Dislike ||
-                currentPortfolioInteraction == PortfolioInteractions.Like,
-            ""
-        );
-        if (currentPortfolioInteraction == PortfolioInteractions.Like) {
-            portfolios[_portfolioAddress].likes--;
-        } else if (
-            currentPortfolioInteraction == PortfolioInteractions.Dislike
-        ) {
-            portfolios[_portfolioAddress].dislikes--;
-        }
-
-        portfolioInteractions[_portfolioAddress][
-            msg.sender
-        ] = PortfolioInteractions.None;
-    }
-
     // ---------- TRADING ----------
 
     function buyShares(address _portfolioAddress, uint256 _amount)
@@ -391,20 +315,18 @@ contract Portfolium {
     function sellShares(address _portfolioAddress, uint256 _amount)
         external
         payable
-        mustPayPlatformCommission
         mustBeExistingPortfolio(_portfolioAddress)
         returns (uint256)
     {
-        uint256 price = getShareValue(_portfolioAddress);
-        uint256 received = (price * _amount);
+        uint256 payout = _calculatePayoutPrice(_portfolioAddress, _amount);
         portfolios[_portfolioAddress].totalSupply -= _amount;
         portfolioBalanceOf[_portfolioAddress][msg.sender] -= _amount;
 
-        reserve.deposit{value: platformCommission}();
         _sellAssets(_portfolioAddress, _amount);
-        treasury.withdraw(msg.sender, received);
+        treasury.withdraw(msg.sender, payout);
+        treasury.withdraw(address(reserve), platformCommission);
 
-        return received;
+        return payout;
     }
 
     // ---------- GETTERS ----------
@@ -436,18 +358,18 @@ contract Portfolium {
             Asset memory asset = availableAssets[
                 selectedPortfolioAssetAddresses[i]
             ];
-            (uint256 assetPrice, ) = oracle.getPrice(asset.assetAddress);
             uint256 perShareAmount = portfolioAssetAllocations[
                 _portfolioAddress
             ][asset.assetAddress].perShareAmount;
+            uint256 amountToBuy = _amount * perShareAmount;
             // TODO: Test scaling with 10+ decimal assets
 
             if (asset.assetType == AssetTypes.Mirrored) {
                 Mirrored mirrored = Mirrored(asset.assetAddress);
-                sharePrice += mirrored.calculateBuyingCost(_amount);
+                sharePrice += mirrored.calculateBuyingCost(amountToBuy);
             } else if (asset.assetType == AssetTypes.ERC20) {
-                uint256 price = (perShareAmount * assetPrice);
-                sharePrice += price * _amount;
+                (uint256 assetPrice, ) = oracle.getPrice(asset.assetAddress);
+                sharePrice += assetPrice * amountToBuy;
             }
         }
         return (sharePrice += platformCommission);
@@ -532,13 +454,47 @@ contract Portfolium {
             ][asset.assetAddress].perShareAmount;
             uint256 amountToSell = (_amount * perShareAmount);
             if (amountToSell > 0) {
-                treasury.sellAsset(
+                // TODO: 
+                treasury.sellAsset{value: platformCommission}(
                     _portfolioAddress,
                     asset.assetAddress,
                     amountToSell
                 );
             }
         }
+    }
+
+    function _calculatePayoutPrice(address _portfolioAddress, uint256 _amount)
+        public
+        view
+        returns (uint256)
+    {
+        uint16 selectedPortfolioAssetCount = portfolios[_portfolioAddress]
+            .assetCount;
+        address[]
+            memory selectedPortfolioAssetAddresses = portfolioAssetAddresses[
+                _portfolioAddress
+            ];
+        uint256 sharePrice = 0;
+
+        for (uint256 i = 0; i < selectedPortfolioAssetCount; i++) {
+            Asset memory asset = availableAssets[
+                selectedPortfolioAssetAddresses[i]
+            ];
+            uint256 perShareAmount = portfolioAssetAllocations[
+                _portfolioAddress
+            ][asset.assetAddress].perShareAmount;
+            uint256 amountToSell = perShareAmount * _amount;
+
+            if (asset.assetType == AssetTypes.Mirrored) {
+                Mirrored mirrored = Mirrored(asset.assetAddress);
+                sharePrice += mirrored.calculateSellingPrice(amountToSell);
+            } else if (asset.assetType == AssetTypes.ERC20) {
+                (uint256 assetPrice, ) = oracle.getPrice(asset.assetAddress);
+                sharePrice += amountToSell * assetPrice;
+            }
+        }
+        return (sharePrice -= platformCommission);
     }
 
     function _absDiff(uint256 a, uint256 b) internal pure returns (uint256) {

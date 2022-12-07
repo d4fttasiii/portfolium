@@ -100,4 +100,15 @@ contract Mirrored is TokenERC20 {
 
         return cost;
     }
+
+    function calculateSellingPrice(uint256 _amount)
+        public
+        view
+        returns (uint256)
+    {
+        (uint256 price, ) = oracle.getPrice(address(this));
+        uint256 total = (price * _amount) - commission;
+
+        return total;
+    }
 }
