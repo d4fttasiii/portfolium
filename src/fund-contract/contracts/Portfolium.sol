@@ -332,16 +332,6 @@ contract Portfolium {
 
     // ---------- GETTERS ----------
 
-    function getPortfolioValue(address _portfolioAddress)
-        public
-        view
-        returns (uint256)
-    {
-        uint256 totalSupply = portfolios[_portfolioAddress].totalSupply;
-        uint256 price = getShareValue(_portfolioAddress);
-        return price * totalSupply;
-    }
-
     function calculateBuyingCost(address _portfolioAddress, uint256 _amount)
         public
         view
@@ -349,56 +339,50 @@ contract Portfolium {
     {
         uint16 selectedPortfolioAssetCount = portfolios[_portfolioAddress]
             .assetCount;
-        address[]
-            memory selectedPortfolioAssetAddresses = portfolioAssetAddresses[
-                _portfolioAddress
-            ];
-        uint256 sharePrice = 0;
+        uint256 totalCost = 0;
 
         for (uint256 i = 0; i < selectedPortfolioAssetCount; i++) {
-            Asset memory asset = availableAssets[
-                selectedPortfolioAssetAddresses[i]
+            address assetAddress = portfolioAssetAddresses[_portfolioAddress][
+                i
             ];
-            uint256 perShareAmount = portfolioAssetAllocations[
-                _portfolioAddress
-            ][asset.assetAddress].perShareAmount;
-            uint256 amountToBuy = _amount * perShareAmount;
+            uint256 amountToBuy = _getAssetAmount(
+                _portfolioAddress,
+                assetAddress,
+                _amount
+            );
             uint256 buyingCost = oracle.getBuyingCost(
-                asset.assetAddress,
+                assetAddress,
                 amountToBuy
             );
-            sharePrice += buyingCost;
+            totalCost += buyingCost;
         }
 
-        return (sharePrice += platformCommission);
+        return (totalCost += platformCommission);
     }
 
-    function getShareValue(address _portfolioAddress)
+    function getTokenPrice(address _portfolioAddress)
         public
         view
         returns (uint256)
     {
         uint16 selectedPortfolioAssetCount = portfolios[_portfolioAddress]
             .assetCount;
-        address[]
-            memory selectedPortfolioAssetAddresses = portfolioAssetAddresses[
-                _portfolioAddress
-            ];
-        uint256 sharePrice = 0;
+        uint256 tokenPrice = 0;
 
         for (uint256 i = 0; i < selectedPortfolioAssetCount; i++) {
-            Asset memory asset = availableAssets[
-                selectedPortfolioAssetAddresses[i]
+            address assetAddress = portfolioAssetAddresses[_portfolioAddress][
+                i
             ];
-            (uint256 assetPrice, ) = oracle.getPrice(asset.assetAddress);
-            uint256 perShareAmount = portfolioAssetAllocations[
-                _portfolioAddress
-            ][asset.assetAddress].perShareAmount;
-            // TODO: Test scaling with 10+ decimal assets
+            uint256 perShareAmount = _getAssetAmount(
+                _portfolioAddress,
+                assetAddress,
+                1
+            );
+            (uint256 assetPrice, ) = oracle.getPrice(assetAddress);
             uint256 price = (perShareAmount * assetPrice);
-            sharePrice += price;
+            tokenPrice += price;
         }
-        return sharePrice;
+        return tokenPrice;
     }
 
     // ---------- HELPERS ----------
@@ -406,26 +390,21 @@ contract Portfolium {
     function _buyAssets(address _portfolioAddress, uint256 _amount) internal {
         uint16 selectedPortfolioAssetCount = portfolios[_portfolioAddress]
             .assetCount;
-        address[]
-            memory selectedPortfolioAssetAddresses = portfolioAssetAddresses[
-                _portfolioAddress
-            ];
         for (uint256 i = 0; i < selectedPortfolioAssetCount; i++) {
-            Asset memory asset = availableAssets[
-                selectedPortfolioAssetAddresses[i]
+            address assetAddress = portfolioAssetAddresses[_portfolioAddress][
+                i
             ];
-            uint256 perShareAmount = portfolioAssetAllocations[
-                _portfolioAddress
-            ][asset.assetAddress].perShareAmount;
-            if (perShareAmount > 0) {
-                uint256 amountToBuy = perShareAmount * _amount;
-                uint256 cost = oracle.getBuyingCost(
-                    asset.assetAddress,
-                    amountToBuy
-                );
+            uint256 amountToBuy = _getAssetAmount(
+                _portfolioAddress,
+                assetAddress,
+                _amount
+            );
+
+            if (amountToBuy > 0) {
+                uint256 cost = oracle.getBuyingCost(assetAddress, amountToBuy);
                 treasury.buyAsset{value: cost}(
                     _portfolioAddress,
-                    asset.assetAddress,
+                    assetAddress,
                     amountToBuy
                 );
             }
@@ -435,22 +414,19 @@ contract Portfolium {
     function _sellAssets(address _portfolioAddress, uint256 _amount) internal {
         uint16 selectedPortfolioAssetCount = portfolios[_portfolioAddress]
             .assetCount;
-        address[]
-            memory selectedPortfolioAssetAddresses = portfolioAssetAddresses[
-                _portfolioAddress
-            ];
         for (uint256 i = 0; i < selectedPortfolioAssetCount; i++) {
-            Asset memory asset = availableAssets[
-                selectedPortfolioAssetAddresses[i]
+            address assetAddress = portfolioAssetAddresses[_portfolioAddress][
+                i
             ];
-            uint256 perShareAmount = portfolioAssetAllocations[
-                _portfolioAddress
-            ][asset.assetAddress].perShareAmount;
-            uint256 amountToSell = (_amount * perShareAmount);
+            uint256 amountToSell = _getAssetAmount(
+                _portfolioAddress,
+                assetAddress,
+                _amount
+            );
             if (amountToSell > 0) {
                 treasury.sellAsset(
                     _portfolioAddress,
-                    asset.assetAddress,
+                    assetAddress,
                     amountToSell
                 );
             }
@@ -458,33 +434,40 @@ contract Portfolium {
     }
 
     function _calculatePayoutPrice(address _portfolioAddress, uint256 _amount)
-        public
+        internal
         view
         returns (uint256)
     {
         uint16 selectedPortfolioAssetCount = portfolios[_portfolioAddress]
             .assetCount;
-        address[]
-            memory selectedPortfolioAssetAddresses = portfolioAssetAddresses[
-                _portfolioAddress
-            ];
         uint256 payoutTotal = 0;
 
         for (uint256 i = 0; i < selectedPortfolioAssetCount; i++) {
-            Asset memory asset = availableAssets[
-                selectedPortfolioAssetAddresses[i]
+            address assetAddress = portfolioAssetAddresses[_portfolioAddress][
+                i
             ];
-            uint256 perShareAmount = portfolioAssetAllocations[
-                _portfolioAddress
-            ][asset.assetAddress].perShareAmount;
-            uint256 amountToSell = perShareAmount * _amount;
+            uint256 amountToSell = _getAssetAmount(
+                _portfolioAddress,
+                assetAddress,
+                _amount
+            );
             uint256 payoutAmount = oracle.getPayoutAmount(
-                asset.assetAddress,
+                assetAddress,
                 amountToSell
             );
             payoutTotal += payoutAmount;
         }
         return payoutTotal;
+    }
+
+    function _getAssetAmount(
+        address _portfolioAddress,
+        address _assetAddress,
+        uint256 _amount
+    ) internal view returns (uint256) {
+        return
+            portfolioAssetAllocations[_portfolioAddress][_assetAddress]
+                .perShareAmount * _amount;
     }
 
     function _absDiff(uint256 a, uint256 b) internal pure returns (uint256) {

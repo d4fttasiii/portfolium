@@ -1,7 +1,6 @@
 const Mirrored = artifacts.require("Mirrored");
 const Oracle = artifacts.require("Oracle");
 const Reserve = artifacts.require("Reserve");
-const web3 = require('web3');
 
 const tokenPrice = 13370000000;
 const commission = 1000000000;
@@ -16,6 +15,16 @@ contract("Mirrored", (accounts) => {
         await reserve.addAccount(mirrored.address);
     });
 
+    it("should not exceed max contract size of 24.576KB", async () => {
+        const instance = await Mirrored.deployed();
+        var bytecode = instance.constructor._json.bytecode;
+        
+        assert.isAtMost(
+            bytecode.length / 2,
+            24576,
+            "Max contract size exceeded"
+        )
+    });
 
     it("should set default addresses correctly", async () => {
         const mirrored = await Mirrored.deployed();

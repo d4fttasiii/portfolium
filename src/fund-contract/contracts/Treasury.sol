@@ -55,7 +55,10 @@ contract Treasury {
         _;
     }
 
-    function setPortfoliumAddress(address _portfoliumAddresss) public onlyOwner {
+    function setPortfoliumAddress(address _portfoliumAddresss)
+        public
+        onlyOwner
+    {
         portfoliumAddress = _portfoliumAddresss;
     }
 
@@ -108,13 +111,20 @@ contract Treasury {
         }
     }
 
-    function withdraw(address recipient, uint256 amount)
-        public
-        payable
-        onlyPortfolium
-    {
-        payable(recipient).transfer(amount);
+    function withdraw(
+        address _ownerAddress,
+        address _recipient,
+        uint256 _amount
+    ) public payable onlyPortfolium {
+        balances[_ownerAddress][address(1)] -= _amount;
+        payable(_recipient).transfer(_amount);
     }
+
+    function deposit(address _ownerAddress) external payable {
+        balances[_ownerAddress][address(1)] -= msg.value;
+    }
+
+    receive() external payable {}
 
     function getBalanceOf(address assetAddress) public view returns (uint256) {
         Asset memory asset = assets[assetAddress];
@@ -131,8 +141,6 @@ contract Treasury {
 
         return address(this).balance;
     }
-
-    receive() external payable {}
 
     // ---------- HELPERS ----------
 

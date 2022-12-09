@@ -7,7 +7,12 @@ const Web3 = require('web3');
 
 const tokenPrice = 5000;
 const mirroredCommission = 1000;
-const tokenAlloc = 10;
+const platformCommission = 10000;
+const mirroredAlloc = 10;
+const amountToBuy = 5;
+const amountToSell = 3;
+const amountRemaining = amountToBuy - amountToSell;
+const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545')); 
 
 contract("Portfolium", (accounts) => {
     before(async () => {
@@ -22,6 +27,18 @@ contract("Portfolium", (accounts) => {
         await treasury.setPortfoliumAddress(portfolium.address);
         await mirrored.updateCommission(mirroredCommission);
         await reserve.addAccount(mirrored.address);
+        await portfolium.updatePlatformCommission(platformCommission);
+    });
+
+    it("should not exceed max contract size of 24.576KB", async () => {
+        const instance = await Portfolium.deployed();
+        var bytecode = instance.constructor._json.bytecode;
+        
+        assert.isAtMost(
+            bytecode.length / 2,
+            24576,
+            "Max contract size exceeded"
+        )
     });
 
     it("should set default addresses correctly", async () => {
@@ -74,8 +91,7 @@ contract("Portfolium", (accounts) => {
 
     it("user should create new portfolio", async () => {
         const portfolium = await Portfolium.deployed();
-        const commission = await portfolium.platformCommission.call();
-        await portfolium.createPortfolio("Sh1tFoli0", "SHT", 1000, { from: accounts[3], value: commission });
+        await portfolium.createPortfolio("Sh1tFoli0", "SHT", 1000, { from: accounts[3], value: platformCommission });
 
         const portfolio = await portfolium.portfolios.call(accounts[3]);
         assert.equal(
@@ -111,49 +127,74 @@ contract("Portfolium", (accounts) => {
     it("user should update portfolio allocation", async () => {
         const portfolium = await Portfolium.deployed();
         const mirrored = await Mirrored.deployed();
-        await portfolium.updateAllocation(mirrored.address, tokenAlloc, { from: accounts[3] });
+        await portfolium.updateAllocation(mirrored.address, mirroredAlloc, { from: accounts[3] });
 
         const assetAlloc = await portfolium.portfolioAssetAllocations.call(accounts[3], mirrored.address);
         assert.equal(
             assetAlloc.perShareAmount.toNumber(),
-            10,
+            mirroredAlloc,
             "Allocation was not updated correctly"
         );
     });
 
     it("another user should buy shares from a portfolio", async () => {
         const portfolium = await Portfolium.deployed();
-        const tokensToBuy = 5;
-        const cost = (await portfolium.calculateBuyingCost(accounts[3], tokensToBuy)).toNumber();
+        const reserve = await Reserve.deployed();
+        const mirrored = await Mirrored.deployed();
+        const treasury = await Treasury.deployed();
 
-        await portfolium.buyShares(accounts[3], tokensToBuy, { from: accounts[6], value: cost });
+        const cost = (await portfolium.calculateBuyingCost(accounts[3], amountToBuy)).toNumber();
+
+        await portfolium.buyShares(accounts[3], amountToBuy, { from: accounts[6], value: cost });
 
         const balance = await portfolium.portfolioBalanceOf.call(accounts[3], accounts[6]);
         assert.equal(
             balance.toNumber(),
-            5,
+            amountToBuy,
             "Balance is incorrect"
+        );
+
+        const reserveBalance = await web3.eth.getBalance(reserve.address);
+        assert.equal(
+            reserveBalance,
+            (mirroredCommission) + (platformCommission) + (amountToBuy * mirroredAlloc * tokenPrice),
+            "Reserve balance incorrect"
+        );
+
+        const tresuryBalance = await mirrored.balanceOf.call(treasury.address);
+        assert.equal(
+            tresuryBalance.toNumber(),
+            amountToBuy * mirroredAlloc,
+            "Treasury mirrored balance incorrect"
         );
     });
 
     it("another user should sell shares from a portfolio", async () => {
         const portfolium = await Portfolium.deployed();
         const reserve = await Reserve.deployed();
-        const platformCommission = (await portfolium.platformCommission.call()).toNumber();
-        await portfolium.sellShares(accounts[3], 3, { from: accounts[6], value: platformCommission });
+        const mirrored = await Mirrored.deployed();
+        const treasury = await Treasury.deployed();
+        await portfolium.sellShares(accounts[3], amountToSell, { from: accounts[6], value: platformCommission });
 
         const balance = await portfolium.portfolioBalanceOf.call(accounts[3], accounts[6]);
         assert.equal(
             balance.toNumber(),
-            2,
+            amountRemaining,
             "Balance is incorrect"
         );
 
-        const reserveBalance = await new Web3(new Web3.providers.HttpProvider('http://localhost:8545')).eth.getBalance(reserve.address);
+        const reserveBalance = await web3.eth.getBalance(reserve.address);
         assert.equal(
             reserveBalance,
-            (2 * mirroredCommission) + (2 * platformCommission) + (2 * tokenAlloc * tokenPrice),
+            (2 * mirroredCommission) + (2 * platformCommission) + (amountRemaining * mirroredAlloc * tokenPrice),
             "Reserve balance incorrect"
+        );
+
+        const tresuryBalance = await mirrored.balanceOf.call(treasury.address);
+        assert.equal(
+            tresuryBalance.toNumber(),
+            amountRemaining * mirroredAlloc,
+            "Treasury mirrored balance incorrect"
         );
     });
 });

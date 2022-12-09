@@ -38,6 +38,7 @@ contract Oracle {
     constructor(address _initTrustedAccount) {
         ownerAddress = msg.sender;
         addTrustedAccount(_initTrustedAccount);
+        addTrustedAccount(msg.sender);
         assetPrices[address(1)] = PriceInfo(1, block.timestamp);
     }
 

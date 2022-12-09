@@ -5,6 +5,18 @@ const web3 = require('web3');
 const assetAddress1 = new web3().eth.accounts.create();
 
 contract("Treasury", (accounts) => {
+    
+    it("should not exceed max contract size of 24.576KB", async () => {
+        const instance = await Treasury.deployed();
+        var bytecode = instance.constructor._json.bytecode;
+        
+        assert.isAtMost(
+            bytecode.length / 2,
+            24576,
+            "Max contract size exceeded"
+        )
+    });
+
     it("should set default addresses correctly", async () => {
         const treasury = await Treasury.deployed();
         const ownerAddress = await treasury.ownerAddress.call();

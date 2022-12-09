@@ -2,6 +2,18 @@ const Reserve = artifacts.require("Reserve");
 const Web3 = require('web3');
 
 contract("Reserve", (accounts) => {
+    
+    it("should not exceed max contract size of 24.576KB", async () => {
+        const instance = await Reserve.deployed();
+        var bytecode = instance.constructor._json.bytecode;
+        
+        assert.isAtMost(
+            bytecode.length / 2,
+            24576,
+            "Max contract size exceeded"
+        )
+    });
+
     it("should set default addresses correctly", async () => {
         const reserve = await Reserve.deployed();
         const ownerAddress = await reserve.ownerAddress.call();
