@@ -3,8 +3,11 @@ const Mirrored = artifacts.require("Mirrored");
 const Oracle = artifacts.require("Oracle");
 const Portfolium = artifacts.require("Portfolium");
 const Reserve = artifacts.require("Reserve");
+const Web3 = require('web3');
 
 const tokenPrice = 5000;
+const mirroredCommission = 1000;
+const tokenAlloc = 10;
 
 contract("Portfolium", (accounts) => {
     before(async () => {
@@ -15,8 +18,9 @@ contract("Portfolium", (accounts) => {
         const reserve = await Reserve.deployed();
 
         await oracle.setPrice(mirrored.address, tokenPrice, { from: accounts[1] });
+        await oracle.setAssetTypeMirrored(mirrored.address, { from: accounts[1] });
         await treasury.setPortfoliumAddress(portfolium.address);
-        await mirrored.updateCommission(8);
+        await mirrored.updateCommission(mirroredCommission);
         await reserve.addAccount(mirrored.address);
     });
 
@@ -107,7 +111,7 @@ contract("Portfolium", (accounts) => {
     it("user should update portfolio allocation", async () => {
         const portfolium = await Portfolium.deployed();
         const mirrored = await Mirrored.deployed();
-        await portfolium.updateAllocation(mirrored.address, 10, { from: accounts[3] });
+        await portfolium.updateAllocation(mirrored.address, tokenAlloc, { from: accounts[3] });
 
         const assetAlloc = await portfolium.portfolioAssetAllocations.call(accounts[3], mirrored.address);
         assert.equal(
@@ -121,7 +125,7 @@ contract("Portfolium", (accounts) => {
         const portfolium = await Portfolium.deployed();
         const tokensToBuy = 5;
         const cost = (await portfolium.calculateBuyingCost(accounts[3], tokensToBuy)).toNumber();
-        console.log(cost);
+
         await portfolium.buyShares(accounts[3], tokensToBuy, { from: accounts[6], value: cost });
 
         const balance = await portfolium.portfolioBalanceOf.call(accounts[3], accounts[6]);
@@ -134,15 +138,22 @@ contract("Portfolium", (accounts) => {
 
     it("another user should sell shares from a portfolio", async () => {
         const portfolium = await Portfolium.deployed();
-        const cost = await portfolium._calculatePayoutPrice(accounts[3], 3);
-        console.log(cost.toNumber());
-        await portfolium.sellShares(accounts[3], 3, { from: accounts[6], });
+        const reserve = await Reserve.deployed();
+        const platformCommission = (await portfolium.platformCommission.call()).toNumber();
+        await portfolium.sellShares(accounts[3], 3, { from: accounts[6], value: platformCommission });
 
         const balance = await portfolium.portfolioBalanceOf.call(accounts[3], accounts[6]);
         assert.equal(
             balance.toNumber(),
             2,
             "Balance is incorrect"
+        );
+
+        const reserveBalance = await new Web3(new Web3.providers.HttpProvider('http://localhost:8545')).eth.getBalance(reserve.address);
+        assert.equal(
+            reserveBalance,
+            (2 * mirroredCommission) + (2 * platformCommission) + (2 * tokenAlloc * tokenPrice),
+            "Reserve balance incorrect"
         );
     });
 });

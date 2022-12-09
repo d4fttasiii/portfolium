@@ -316,6 +316,7 @@ contract Portfolium {
         external
         payable
         mustBeExistingPortfolio(_portfolioAddress)
+        mustPayPlatformCommission
         returns (uint256)
     {
         uint256 payout = _calculatePayoutPrice(_portfolioAddress, _amount);
@@ -324,7 +325,7 @@ contract Portfolium {
 
         _sellAssets(_portfolioAddress, _amount);
         treasury.withdraw(msg.sender, payout);
-        treasury.withdraw(address(reserve), platformCommission);
+        reserve.deposit{value: platformCommission}();
 
         return payout;
     }
@@ -362,16 +363,13 @@ contract Portfolium {
                 _portfolioAddress
             ][asset.assetAddress].perShareAmount;
             uint256 amountToBuy = _amount * perShareAmount;
-            // TODO: Test scaling with 10+ decimal assets
-
-            if (asset.assetType == AssetTypes.Mirrored) {
-                Mirrored mirrored = Mirrored(asset.assetAddress);
-                sharePrice += mirrored.calculateBuyingCost(amountToBuy);
-            } else if (asset.assetType == AssetTypes.ERC20) {
-                (uint256 assetPrice, ) = oracle.getPrice(asset.assetAddress);
-                sharePrice += assetPrice * amountToBuy;
-            }
+            uint256 buyingCost = oracle.getBuyingCost(
+                asset.assetAddress,
+                amountToBuy
+            );
+            sharePrice += buyingCost;
         }
+
         return (sharePrice += platformCommission);
     }
 
@@ -421,14 +419,10 @@ contract Portfolium {
             ][asset.assetAddress].perShareAmount;
             if (perShareAmount > 0) {
                 uint256 amountToBuy = perShareAmount * _amount;
-                uint256 cost = 0;
-                if (asset.assetType == AssetTypes.Mirrored) {
-                    Mirrored mirrored = Mirrored(asset.assetAddress);
-                    cost = mirrored.calculateBuyingCost(amountToBuy);
-                } else {
-                    (uint256 price, ) = oracle.getPrice(asset.assetAddress);
-                    cost = (amountToBuy * price);
-                }
+                uint256 cost = oracle.getBuyingCost(
+                    asset.assetAddress,
+                    amountToBuy
+                );
                 treasury.buyAsset{value: cost}(
                     _portfolioAddress,
                     asset.assetAddress,
@@ -454,8 +448,7 @@ contract Portfolium {
             ][asset.assetAddress].perShareAmount;
             uint256 amountToSell = (_amount * perShareAmount);
             if (amountToSell > 0) {
-                // TODO: 
-                treasury.sellAsset{value: platformCommission}(
+                treasury.sellAsset(
                     _portfolioAddress,
                     asset.assetAddress,
                     amountToSell
@@ -475,7 +468,7 @@ contract Portfolium {
             memory selectedPortfolioAssetAddresses = portfolioAssetAddresses[
                 _portfolioAddress
             ];
-        uint256 sharePrice = 0;
+        uint256 payoutTotal = 0;
 
         for (uint256 i = 0; i < selectedPortfolioAssetCount; i++) {
             Asset memory asset = availableAssets[
@@ -485,16 +478,13 @@ contract Portfolium {
                 _portfolioAddress
             ][asset.assetAddress].perShareAmount;
             uint256 amountToSell = perShareAmount * _amount;
-
-            if (asset.assetType == AssetTypes.Mirrored) {
-                Mirrored mirrored = Mirrored(asset.assetAddress);
-                sharePrice += mirrored.calculateSellingPrice(amountToSell);
-            } else if (asset.assetType == AssetTypes.ERC20) {
-                (uint256 assetPrice, ) = oracle.getPrice(asset.assetAddress);
-                sharePrice += amountToSell * assetPrice;
-            }
+            uint256 payoutAmount = oracle.getPayoutAmount(
+                asset.assetAddress,
+                amountToSell
+            );
+            payoutTotal += payoutAmount;
         }
-        return (sharePrice -= platformCommission);
+        return payoutTotal;
     }
 
     function _absDiff(uint256 a, uint256 b) internal pure returns (uint256) {

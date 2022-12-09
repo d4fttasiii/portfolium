@@ -1,11 +1,18 @@
 pragma solidity ^0.8.16;
 
 import "./interfaces/AggregatorV3Interface.sol";
+import "./Mirrored.sol";
 
 contract Oracle {
     enum PriceOrigin {
         Stored,
         Chainlink
+    }
+
+    enum AssetTypes {
+        Native,
+        ERC20,
+        Mirrored
     }
 
     address public ownerAddress;
@@ -20,6 +27,7 @@ contract Oracle {
         uint256 updatedAt;
     }
 
+    mapping(address => AssetTypes) assetTypes;
     mapping(address => PriceInfo) assetPrices;
     mapping(address => PriceOrigin) public assetPriceOrigin;
     mapping(address => address) public chainlinkPriceFeeds;
@@ -102,8 +110,29 @@ contract Oracle {
         }
     }
 
+    function setAssetTypeNative(address _assetAddress)
+        public
+        onlyTrustedAccounts
+    {
+        assetTypes[_assetAddress] = AssetTypes.Native;
+    }
+
+    function setAssetTypeMirrored(address _assetAddress)
+        public
+        onlyTrustedAccounts
+    {
+        assetTypes[_assetAddress] = AssetTypes.Mirrored;
+    }
+
+    function setAssetTypeErc20(address _assetAddress)
+        public
+        onlyTrustedAccounts
+    {
+        assetTypes[_assetAddress] = AssetTypes.ERC20;
+    }
+
     function getPrice(address assetAddress)
-        external
+        public
         view
         returns (uint256 price, uint256 updatedAt)
     {
@@ -121,5 +150,48 @@ contract Oracle {
         PriceInfo memory pi = assetPrices[assetAddress];
 
         return (pi.price, pi.updatedAt);
+    }
+
+    function getBuyingCost(address _assetAddress, uint256 _amount)
+        external
+        view
+        returns (uint256)
+    {
+        AssetTypes assetType = assetTypes[_assetAddress];
+        (uint256 price, ) = getPrice(_assetAddress);
+        uint256 cost = price * _amount;
+
+        if (assetType == AssetTypes.Mirrored) {
+            Mirrored mirrored = Mirrored(_assetAddress);
+            uint256 commission = mirrored.commission();
+            cost += commission;
+        } else if (assetType == AssetTypes.ERC20) {
+            // TODO:
+        }
+
+        return cost;
+    }
+
+    function getPayoutAmount(address _assetAddress, uint256 _amount)
+        external
+        view
+        returns (uint256)
+    {
+        AssetTypes assetType = assetTypes[_assetAddress];
+        (uint256 price, ) = getPrice(_assetAddress);
+        uint256 payoutAmount = price * _amount;
+
+        if (assetType == AssetTypes.Mirrored) {
+            Mirrored mirrored = Mirrored(_assetAddress);
+            uint256 commission = mirrored.commission();
+            if (commission > payoutAmount) {
+                return 0;
+            }
+            payoutAmount -= commission;
+        } else if (assetType == AssetTypes.ERC20) {
+            // TODO
+        }
+
+        return payoutAmount;
     }
 }
