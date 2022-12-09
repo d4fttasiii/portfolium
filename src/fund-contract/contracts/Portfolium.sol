@@ -278,19 +278,20 @@ contract Portfolium {
             .perShareAmount = _perShareAmount;
 
         if (totalSupply > 0) {
-            if (prevAmount > _perShareAmount) {
-                treasury.sellAsset(
-                    msg.sender,
-                    _assetAddress,
-                    diff * totalSupply
-                );
-            } else if (prevAmount < _perShareAmount) {
-                treasury.buyAsset(
-                    msg.sender,
-                    _assetAddress,
-                    diff * totalSupply
-                );
-            }
+            // TODO: proper rebalancing
+            // if (prevAmount > _perShareAmount) {
+            //     treasury.sellAsset(
+            //         msg.sender,
+            //         _assetAddress,
+            //         diff * totalSupply
+            //     );
+            // } else if (prevAmount < _perShareAmount) {
+            //     treasury.buyAsset(
+            //         msg.sender,
+            //         _assetAddress,
+            //         diff * totalSupply
+            //     );
+            // }
         }
     }
 
@@ -309,7 +310,33 @@ contract Portfolium {
         portfolios[_portfolioAddress].totalSupply += _amount;
         portfolioBalanceOf[_portfolioAddress][msg.sender] += _amount;
         reserve.deposit{value: platformCommission}();
-        _buyAssets(_portfolioAddress, _amount);
+        treasury.deposit{value: msg.value - platformCommission}(msg.sender);
+
+        uint16 selectedPortfolioAssetCount = portfolios[_portfolioAddress]
+            .assetCount;
+        for (uint256 i = 1; i < selectedPortfolioAssetCount; i++) {
+            address assetAddress = portfolioAssetAddresses[_portfolioAddress][
+                i
+            ];
+            uint256 amountToBuy = _getAssetAmount(
+                _portfolioAddress,
+                assetAddress,
+                _amount
+            );
+
+            if (amountToBuy > 0) {
+                uint256 assetCost = oracle.getBuyingCost(
+                    assetAddress,
+                    amountToBuy
+                );
+                treasury.buyAsset(
+                    _portfolioAddress,
+                    assetAddress,
+                    amountToBuy,
+                    assetCost
+                );
+            }
+        }
     }
 
     function sellShares(address _portfolioAddress, uint256 _amount)
@@ -323,8 +350,27 @@ contract Portfolium {
         portfolios[_portfolioAddress].totalSupply -= _amount;
         portfolioBalanceOf[_portfolioAddress][msg.sender] -= _amount;
 
-        _sellAssets(_portfolioAddress, _amount);
-        treasury.withdraw(msg.sender, payout);
+        uint16 selectedPortfolioAssetCount = portfolios[_portfolioAddress]
+            .assetCount;
+        for (uint256 i = 1; i < selectedPortfolioAssetCount; i++) {
+            address assetAddress = portfolioAssetAddresses[_portfolioAddress][
+                i
+            ];
+            uint256 amountToSell = _getAssetAmount(
+                _portfolioAddress,
+                assetAddress,
+                _amount
+            );
+            if (amountToSell > 0) {
+                treasury.sellAsset(
+                    _portfolioAddress,
+                    assetAddress,
+                    amountToSell
+                );
+            }
+        }
+
+        treasury.withdraw(msg.sender, msg.sender, payout);
         reserve.deposit{value: platformCommission}();
 
         return payout;
@@ -386,52 +432,6 @@ contract Portfolium {
     }
 
     // ---------- HELPERS ----------
-
-    function _buyAssets(address _portfolioAddress, uint256 _amount) internal {
-        uint16 selectedPortfolioAssetCount = portfolios[_portfolioAddress]
-            .assetCount;
-        for (uint256 i = 0; i < selectedPortfolioAssetCount; i++) {
-            address assetAddress = portfolioAssetAddresses[_portfolioAddress][
-                i
-            ];
-            uint256 amountToBuy = _getAssetAmount(
-                _portfolioAddress,
-                assetAddress,
-                _amount
-            );
-
-            if (amountToBuy > 0) {
-                uint256 cost = oracle.getBuyingCost(assetAddress, amountToBuy);
-                treasury.buyAsset{value: cost}(
-                    _portfolioAddress,
-                    assetAddress,
-                    amountToBuy
-                );
-            }
-        }
-    }
-
-    function _sellAssets(address _portfolioAddress, uint256 _amount) internal {
-        uint16 selectedPortfolioAssetCount = portfolios[_portfolioAddress]
-            .assetCount;
-        for (uint256 i = 0; i < selectedPortfolioAssetCount; i++) {
-            address assetAddress = portfolioAssetAddresses[_portfolioAddress][
-                i
-            ];
-            uint256 amountToSell = _getAssetAmount(
-                _portfolioAddress,
-                assetAddress,
-                _amount
-            );
-            if (amountToSell > 0) {
-                treasury.sellAsset(
-                    _portfolioAddress,
-                    assetAddress,
-                    amountToSell
-                );
-            }
-        }
-    }
 
     function _calculatePayoutPrice(address _portfolioAddress, uint256 _amount)
         internal

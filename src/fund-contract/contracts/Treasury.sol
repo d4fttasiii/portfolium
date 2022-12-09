@@ -73,20 +73,20 @@ contract Treasury {
     function buyAsset(
         address _ownerAddress,
         address _assetAddress,
-        uint256 _amount
-    ) public payable onlyPortfolium {
+        uint256 _amount,
+        uint256 _cost
+    ) external onlyPortfolium {
         Asset memory asset = assets[_assetAddress];
         if (asset.assetType == AssetTypes.Mirrored) {
             Mirrored mirrored = Mirrored(_assetAddress);
-            uint256 minted = mirrored.mint{value: msg.value}(_amount);
-            balances[_ownerAddress][asset.assetAddress] += minted;
+            uint256 cost = mirrored.mint{value: _cost}(_amount);
+            balances[_ownerAddress][asset.assetAddress] += _amount;
+            balances[_ownerAddress][address(1)] -= cost;
         }
         if (asset.assetType == AssetTypes.ERC20) {
-            uint256 received = _convertToErc20(_assetAddress, _amount);
-            balances[_ownerAddress][asset.assetAddress] += received;
-        }
-        if (asset.assetType == AssetTypes.Native) {
+            uint256 cost = _convertToErc20(_assetAddress, _amount);
             balances[_ownerAddress][asset.assetAddress] += _amount;
+            balances[_ownerAddress][address(1)] -= cost;
         }
     }
 
@@ -94,20 +94,19 @@ contract Treasury {
         address _ownerAddress,
         address _assetAddress,
         uint256 _amount
-    ) public payable onlyPortfolium {
+    ) external payable onlyPortfolium {
         // TODO: Check if balance available
         Asset memory asset = assets[_assetAddress];
         if (asset.assetType == AssetTypes.Mirrored) {
             Mirrored mirrored = Mirrored(_assetAddress);
-            uint256 burned = mirrored.burn(_amount);
-            balances[_ownerAddress][asset.assetAddress] -= burned;
+            uint256 cost = mirrored.burn(_amount);
+            balances[_ownerAddress][asset.assetAddress] -= _amount;
+            balances[_ownerAddress][address(1)] += cost;
         }
         if (asset.assetType == AssetTypes.ERC20) {
-            uint256 sold = _convertFromErc20(_assetAddress, _amount);
-            balances[_ownerAddress][asset.assetAddress] -= sold;
-        }
-        if (asset.assetType == AssetTypes.Native) {
+            uint256 cost = _convertFromErc20(_assetAddress, _amount);
             balances[_ownerAddress][asset.assetAddress] -= _amount;
+            balances[_ownerAddress][address(1)] += cost;
         }
     }
 
@@ -121,7 +120,7 @@ contract Treasury {
     }
 
     function deposit(address _ownerAddress) external payable {
-        balances[_ownerAddress][address(1)] -= msg.value;
+        balances[_ownerAddress][address(1)] += msg.value;
     }
 
     receive() external payable {}

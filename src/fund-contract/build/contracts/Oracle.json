@@ -9799,10 +9799,10 @@
     "absolutePath": "project:/contracts/Oracle.sol",
     "exportedSymbols": {
       "AggregatorV3Interface": [
-        4148
+        4147
       ],
       "IERC20": [
-        4217
+        4216
       ],
       "Mirrored": [
         1541
@@ -9811,10 +9811,10 @@
         2038
       ],
       "Reserve": [
-        3317
+        3272
       ],
       "TokenERC20": [
-        3511
+        3466
       ]
     },
     "id": 2039,
@@ -9838,7 +9838,7 @@
         "nameLocation": "-1:-1:-1",
         "nodeType": "ImportDirective",
         "scope": 2039,
-        "sourceUnit": 4149,
+        "sourceUnit": 4148,
         "src": "26:48:2",
         "symbolAliases": [],
         "unitAlias": ""
@@ -13657,7 +13657,7 @@
                             "stateVariable": false,
                             "storageLocation": "default",
                             "typeDescriptions": {
-                              "typeIdentifier": "t_contract$_AggregatorV3Interface_$4148",
+                              "typeIdentifier": "t_contract$_AggregatorV3Interface_$4147",
                               "typeString": "contract AggregatorV3Interface"
                             },
                             "typeName": {
@@ -13670,13 +13670,13 @@
                                   "3679:21:2"
                                 ],
                                 "nodeType": "IdentifierPath",
-                                "referencedDeclaration": 4148,
+                                "referencedDeclaration": 4147,
                                 "src": "3679:21:2"
                               },
-                              "referencedDeclaration": 4148,
+                              "referencedDeclaration": 4147,
                               "src": "3679:21:2",
                               "typeDescriptions": {
-                                "typeIdentifier": "t_contract$_AggregatorV3Interface_$4148",
+                                "typeIdentifier": "t_contract$_AggregatorV3Interface_$4147",
                                 "typeString": "contract AggregatorV3Interface"
                               }
                             },
@@ -13710,10 +13710,10 @@
                             "name": "AggregatorV3Interface",
                             "nodeType": "Identifier",
                             "overloadedDeclarations": [],
-                            "referencedDeclaration": 4148,
+                            "referencedDeclaration": 4147,
                             "src": "3713:21:2",
                             "typeDescriptions": {
-                              "typeIdentifier": "t_type$_t_contract$_AggregatorV3Interface_$4148_$",
+                              "typeIdentifier": "t_type$_t_contract$_AggregatorV3Interface_$4147_$",
                               "typeString": "type(contract AggregatorV3Interface)"
                             }
                           },
@@ -13729,7 +13729,7 @@
                           "src": "3713:69:2",
                           "tryCall": false,
                           "typeDescriptions": {
-                            "typeIdentifier": "t_contract$_AggregatorV3Interface_$4148",
+                            "typeIdentifier": "t_contract$_AggregatorV3Interface_$4147",
                             "typeString": "contract AggregatorV3Interface"
                           }
                         },
@@ -13816,7 +13816,7 @@
                               "referencedDeclaration": 1874,
                               "src": "3840:9:2",
                               "typeDescriptions": {
-                                "typeIdentifier": "t_contract$_AggregatorV3Interface_$4148",
+                                "typeIdentifier": "t_contract$_AggregatorV3Interface_$4147",
                                 "typeString": "contract AggregatorV3Interface"
                               }
                             },
@@ -13828,7 +13828,7 @@
                             "memberLocation": "3867:15:2",
                             "memberName": "latestRoundData",
                             "nodeType": "MemberAccess",
-                            "referencedDeclaration": 4147,
+                            "referencedDeclaration": 4146,
                             "src": "3840:42:2",
                             "typeDescriptions": {
                               "typeIdentifier": "t_function_external_view$__$returns$_t_uint80_$_t_int256_$_t_uint256_$_t_uint256_$_t_uint80_$",
@@ -15810,7 +15810,7 @@
   },
   "networks": {},
   "schemaVersion": "3.4.9",
-  "updatedAt": "2022-12-09T14:36:28.703Z",
+  "updatedAt": "2022-12-09T15:19:25.006Z",
   "devdoc": {
     "kind": "dev",
     "methods": {},
