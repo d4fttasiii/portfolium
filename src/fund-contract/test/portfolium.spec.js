@@ -142,12 +142,13 @@ contract("Portfolium", (accounts) => {
         const reserve = await Reserve.deployed();
         const mirrored = await Mirrored.deployed();
         const treasury = await Treasury.deployed();
+        const buyer = accounts[6];
+        const portfolio = accounts[3];
 
-        const cost = (await portfolium.calculateBuyingCost(accounts[3], amountToBuy)).toNumber();
+        const cost = (await portfolium.calculateBuyingCost(portfolio, amountToBuy)).toNumber();
+        await portfolium.buyShares(portfolio, amountToBuy, { from: buyer, value: cost });
 
-        await portfolium.buyShares(accounts[3], amountToBuy, { from: accounts[6], value: cost });
-
-        const balance = await portfolium.portfolioBalanceOf.call(accounts[3], accounts[6]);
+        const balance = await portfolium.portfolioBalanceOf.call(portfolio, buyer);
         assert.equal(
             balance.toNumber(),
             amountToBuy,
@@ -167,6 +168,20 @@ contract("Portfolium", (accounts) => {
             amountToBuy * mirroredAlloc,
             "Treasury mirrored balance incorrect"
         );
+
+        const userAssetBalance = await treasury.getBalanceOf(buyer, mirrored.address);
+        assert.equal(
+            userAssetBalance,
+            amountToBuy * mirroredAlloc,
+            "User asset balance incorrect"
+        );
+
+        const userNativeBalance = await treasury.getBalanceOf(buyer, "0x0000000000000000000000000000000000000001");
+        assert.equal(
+            userNativeBalance.toNumber(),
+            0,
+            "Native balance should be 0"
+        );
     });
 
     it("another user should sell shares from a portfolio", async () => {
@@ -174,9 +189,11 @@ contract("Portfolium", (accounts) => {
         const reserve = await Reserve.deployed();
         const mirrored = await Mirrored.deployed();
         const treasury = await Treasury.deployed();
-        await portfolium.sellShares(accounts[3], amountToSell, { from: accounts[6], value: platformCommission });
+        const buyer = accounts[6];
+        const portfolio = accounts[3];
+        await portfolium.sellShares(portfolio, amountToSell, { from: buyer, value: platformCommission });
 
-        const balance = await portfolium.portfolioBalanceOf.call(accounts[3], accounts[6]);
+        const balance = await portfolium.portfolioBalanceOf.call(portfolio, buyer);
         assert.equal(
             balance.toNumber(),
             amountRemaining,
@@ -195,6 +212,20 @@ contract("Portfolium", (accounts) => {
             tresuryBalance.toNumber(),
             amountRemaining * mirroredAlloc,
             "Treasury mirrored balance incorrect"
+        );
+
+        const userAssetBalance = await treasury.getBalanceOf(buyer, mirrored.address);
+        assert.equal(
+            userAssetBalance,
+            amountRemaining * mirroredAlloc,
+            "User asset balance incorrect"
+        );
+
+        const userNativeBalance = await treasury.getBalanceOf(buyer, "0x0000000000000000000000000000000000000001");
+        assert.equal(
+            userNativeBalance.toNumber(),
+            0,
+            "Native balance should be 0"
         );
     });
 });

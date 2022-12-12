@@ -2,7 +2,6 @@ pragma solidity ^0.8.16;
 
 import "./interfaces/IUniswapV2Router02.sol";
 import "./interfaces/IERC20.sol";
-import "./interfaces/IERC721.sol";
 import "./Mirrored.sol";
 
 contract Treasury {
@@ -24,6 +23,17 @@ contract Treasury {
 
     mapping(address => mapping(address => uint256)) public balances;
     mapping(address => Asset) public assets;
+
+    event AssetBought(
+        address indexed assetAddress,
+        uint256 amount,
+        uint256 cost
+    );
+    event AssetSold(
+        address indexed assetAddress,
+        uint256 amount,
+        uint256 received
+    );
 
     constructor(address _uniswapRouterAddress) {
         ownerAddress = msg.sender;
@@ -76,17 +86,22 @@ contract Treasury {
         uint256 _amount,
         uint256 _cost
     ) external onlyPortfolium {
+        require(
+            balances[_ownerAddress][address(1)] >= _cost,
+            "Unable to buy, owner native balance too low"
+        );
         Asset memory asset = assets[_assetAddress];
         if (asset.assetType == AssetTypes.Mirrored) {
             Mirrored mirrored = Mirrored(_assetAddress);
-            uint256 cost = mirrored.mint{value: _cost}(_amount);
+            uint256 amountPaid = mirrored.mint{value: _cost}(_amount);
             balances[_ownerAddress][asset.assetAddress] += _amount;
-            balances[_ownerAddress][address(1)] -= cost;
-        }
-        if (asset.assetType == AssetTypes.ERC20) {
-            uint256 cost = _convertToErc20(_assetAddress, _amount);
+            balances[_ownerAddress][address(1)] -= amountPaid;
+            emit AssetBought(_assetAddress, _amount, amountPaid);
+        } else if (asset.assetType == AssetTypes.ERC20) {
+            uint256 amountPaid = _convertToErc20(_assetAddress, _amount);
             balances[_ownerAddress][asset.assetAddress] += _amount;
-            balances[_ownerAddress][address(1)] -= cost;
+            balances[_ownerAddress][address(1)] -= amountPaid;
+            emit AssetBought(_assetAddress, _amount, amountPaid);
         }
     }
 
@@ -95,18 +110,22 @@ contract Treasury {
         address _assetAddress,
         uint256 _amount
     ) external payable onlyPortfolium {
-        // TODO: Check if balance available
+        require(
+            balances[_ownerAddress][_assetAddress] >= _amount,
+            "Unable to sell, owner asset balance too low"
+        );
         Asset memory asset = assets[_assetAddress];
         if (asset.assetType == AssetTypes.Mirrored) {
             Mirrored mirrored = Mirrored(_assetAddress);
-            uint256 cost = mirrored.burn(_amount);
+            uint256 amountReceived = mirrored.burn(_amount);
             balances[_ownerAddress][asset.assetAddress] -= _amount;
-            balances[_ownerAddress][address(1)] += cost;
-        }
-        if (asset.assetType == AssetTypes.ERC20) {
-            uint256 cost = _convertFromErc20(_assetAddress, _amount);
+            balances[_ownerAddress][address(1)] += amountReceived;
+            emit AssetSold(_assetAddress, _amount, amountReceived);
+        } else if (asset.assetType == AssetTypes.ERC20) {
+            uint256 amountReceived = _convertFromErc20(_assetAddress, _amount);
             balances[_ownerAddress][asset.assetAddress] -= _amount;
-            balances[_ownerAddress][address(1)] += cost;
+            balances[_ownerAddress][address(1)] += amountReceived;
+            emit AssetSold(_assetAddress, _amount, amountReceived);
         }
     }
 
@@ -119,26 +138,22 @@ contract Treasury {
         payable(_recipient).transfer(_amount);
     }
 
-    function deposit(address _ownerAddress) external payable {
+    function deposit() external payable {
+        balances[msg.sender][address(1)] += msg.value;
+    }
+
+    function depositFor(address _ownerAddress) external payable onlyPortfolium {
         balances[_ownerAddress][address(1)] += msg.value;
     }
 
     receive() external payable {}
 
-    function getBalanceOf(address assetAddress) public view returns (uint256) {
-        Asset memory asset = assets[assetAddress];
-        if (asset.assetAddress == address(0)) {
-            return 0;
-        }
-        if (
-            asset.assetType == AssetTypes.ERC20 ||
-            asset.assetType == AssetTypes.Mirrored
-        ) {
-            IERC20 token = IERC20(assetAddress);
-            return token.balanceOf(address(this));
-        }
-
-        return address(this).balance;
+    function getBalanceOf(address _ownerAddress, address _assetAddress)
+        public
+        view
+        returns (uint256)
+    {
+        return balances[_ownerAddress][_assetAddress];
     }
 
     // ---------- HELPERS ----------

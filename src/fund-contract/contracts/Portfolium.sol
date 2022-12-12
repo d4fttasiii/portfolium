@@ -276,22 +276,27 @@ contract Portfolium {
         uint256 diff = _absDiff(prevAmount, _perShareAmount);
         portfolioAssetAllocations[msg.sender][_assetAddress]
             .perShareAmount = _perShareAmount;
+        uint256 amount = diff * totalSupply;
 
         if (totalSupply > 0) {
-            // TODO: proper rebalancing
-            // if (prevAmount > _perShareAmount) {
-            //     treasury.sellAsset(
-            //         msg.sender,
-            //         _assetAddress,
-            //         diff * totalSupply
-            //     );
-            // } else if (prevAmount < _perShareAmount) {
-            //     treasury.buyAsset(
-            //         msg.sender,
-            //         _assetAddress,
-            //         diff * totalSupply
-            //     );
-            // }
+            if (prevAmount > _perShareAmount) {
+                treasury.sellAsset(
+                    msg.sender,
+                    _assetAddress,
+                    amount
+                );
+            } else if (prevAmount < _perShareAmount) {
+                uint256 assetCost = oracle.getBuyingCost(
+                    _assetAddress,
+                    amount
+                );
+                treasury.buyAsset(
+                    msg.sender,
+                    _assetAddress,
+                    amount,
+                    assetCost
+                );
+            }
         }
     }
 
@@ -301,6 +306,7 @@ contract Portfolium {
         external
         payable
         mustBeExistingPortfolio(_portfolioAddress)
+        mustPayPlatformCommission
     {
         uint256 cost = calculateBuyingCost(_portfolioAddress, _amount);
         require(
@@ -310,7 +316,7 @@ contract Portfolium {
         portfolios[_portfolioAddress].totalSupply += _amount;
         portfolioBalanceOf[_portfolioAddress][msg.sender] += _amount;
         reserve.deposit{value: platformCommission}();
-        treasury.deposit{value: msg.value - platformCommission}(msg.sender);
+        treasury.depositFor{value: msg.value - platformCommission}(msg.sender);
 
         uint16 selectedPortfolioAssetCount = portfolios[_portfolioAddress]
             .assetCount;
@@ -330,7 +336,7 @@ contract Portfolium {
                     amountToBuy
                 );
                 treasury.buyAsset(
-                    _portfolioAddress,
+                    msg.sender,
                     assetAddress,
                     amountToBuy,
                     assetCost
@@ -363,7 +369,7 @@ contract Portfolium {
             );
             if (amountToSell > 0) {
                 treasury.sellAsset(
-                    _portfolioAddress,
+                    msg.sender,
                     assetAddress,
                     amountToSell
                 );
@@ -464,7 +470,7 @@ contract Portfolium {
         address _portfolioAddress,
         address _assetAddress,
         uint256 _amount
-    ) internal view returns (uint256) {
+    ) public view returns (uint256) {
         return
             portfolioAssetAllocations[_portfolioAddress][_assetAddress]
                 .perShareAmount * _amount;
