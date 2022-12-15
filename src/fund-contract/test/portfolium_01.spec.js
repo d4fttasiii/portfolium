@@ -14,7 +14,7 @@ const amountToSell = 3;
 const amountRemaining = amountToBuy - amountToSell;
 const web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545')); 
 
-contract("Portfolium", (accounts) => {
+contract("Portfolium 01", (accounts) => {
     before(async () => {
         const oracle = await Oracle.deployed();
         const mirrored = await Mirrored.deployed();
