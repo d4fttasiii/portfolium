@@ -1,0 +1,21 @@
+{
+  "scripts": {
+    "abis": "node ./abi-gen.js",
+    "ncu:validate": "npx npm-check-updates",
+    "ncu:update": "npx npm-check-updates -u",
+    "start:ganache": "ganache --mnemonic \"candy maple cake sugar pudding cream honey rich smooth crumble sweet treat\""
+  },
+  "dependencies": {
+    "@chainlink/contracts": "0.8.0",
+    "@openzeppelin/contracts": "5.0.0",
+    "@truffle/hdwallet-provider": "^2.1.15",
+    "@uniswap/v3-core": "^1.0.1",
+    "@uniswap/v3-periphery": "^1.4.4",
+    "truffle-assertions": "0.9.2",
+    "web3": "1.10.3"
+  },
+  "devDependencies": {
+    "chai": "4.3.10",
+    "npm-check-updates": "16.13.2"
+  }
+}
