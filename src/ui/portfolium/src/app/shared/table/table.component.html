@@ -1,0 +1,88 @@
+<table class="table text-gray-400 border-separate text-sm font-mono w-full">
+  <thead class="bg-gray-800 text-white">
+    <tr>
+      <th
+        class="p-3"
+        [ngClass]="{
+          'text-left': head.align === 'left',
+          'text-right': head.align === 'right',
+          'text-center': head.align === 'center'
+        }"
+        *ngFor="let head of dataSource.header">
+        {{ head.label }}
+      </th>
+    </tr>
+  </thead>
+  <tbody *ngIf="isLoading">
+    <tr class="bg-gray-800">
+      <td *ngFor="let head of dataSource.header">
+        <div class="animate__animated animate__infinite animate__pulse">
+          <div class="flex-1 py-4 mx-2">
+            <div class="h-2 bg-slate-700 rounded"></div>
+          </div>
+        </div>
+      </td>
+    </tr>
+  </tbody>
+  <tbody *ngIf="!isLoading">
+    <tr class="bg-gray-800 animate__animated animate__flipInX" *ngFor="let row of dataSource.rows">
+      <td class="p-3" *ngFor="let record of row.records">
+        <div [ngSwitch]="record.type">
+          <div *ngSwitchCase="0">
+            <span [class.font-bold]="record.data.isBold">{{ record.data.text }}</span>
+          </div>
+          <div *ngSwitchCase="1">
+            <img class="rounded-full h-12 w-12 object-cover" [src]="record.data.url" />
+          </div>
+          <div *ngSwitchCase="2">
+            <port-icon-button
+              class="ml-2"
+              *ngFor="let action of record.data.actions"
+              [icon]="action.icon"
+              [color]="action.color"
+              (clicked)="action.fn()">
+            </port-icon-button>
+          </div>
+          <div *ngSwitchCase="3">
+            <port-badge [color]="record.data.color">{{ record.data.text }}</port-badge>
+          </div>
+          <div *ngSwitchCase="4">
+            <div *ngFor="let text of record.data.lines">
+              {{ text }}
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>
+    <!--
+      <td class="p-3">
+        <div class="flex align-items-center">
+          <img
+            class="rounded-full h-12 w-12 object-cover"
+            src="https://images.unsplash.com/photo-1613588718956-c2e80305bf61?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=634&q=80"
+            alt="unsplash image" />
+          <div class="ml-3">
+            <div class="">Apple</div>
+            <div class="text-gray-500">mail@rgmail.com</div>
+          </div>
+        </div>
+      </td>
+      <td class="p-3">Technology</td>
+      <td class="p-3 font-bold">200.00$</td>
+      <td class="p-3">
+        <span class="bg-green-400 text-gray-50 rounded-md px-2">available</span>
+      </td>
+      <td class="p-3">
+        <a href="#" class="text-gray-400 hover:text-gray-100 mr-2">
+          <i class="material-icons-outlined text-base">visibility</i>
+        </a>
+        <a href="#" class="text-gray-400 hover:text-gray-100 mx-2">
+          <i class="material-icons-outlined text-base">edit</i>
+        </a>
+        <a href="#" class="text-gray-400 hover:text-gray-100 ml-2">
+          <i class="material-icons-round text-base">delete_outline</i>
+        </a>
+      </td>
+    </tr> -->
+  </tbody>
+</table>

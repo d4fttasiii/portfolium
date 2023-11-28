@@ -1,0 +1,166 @@
+<div class="mt-8">
+  <port-card title="Dashboard">
+    <div class="grid grid-cols-6 gap-6 my-6">
+      <div class="col-span-3"></div>
+    </div>
+    <div class="grid grid-cols-6 gap-6 my-6">
+      <div class="col-span-6">
+        <port-table [dataSource]="allocation" [isLoading]="isLoading"></port-table>
+      </div>
+      <!-- <div class="col-span-2">
+        <highcharts-chart
+          [Highcharts]="Highcharts"
+          [options]="chartOptions"
+          style="width: 100%; height: 400px; display: block">
+        </highcharts-chart>
+      </div> -->
+    </div>
+    <!-- <div class="w-full">
+      <div class="grid grid-cols-3 gap-6 my-6">
+        <div class="col-span-3">
+          <app-metric-box
+            title="Fund Address"
+            [metric]="fundProperties?.fundAddress"
+            [toCopy]="fundProperties?.fundAddress"
+            [isLoading]="isContractLoading"
+            [copyEnabled]="true"></app-metric-box>
+        </div>
+        <div>
+          <app-metric-box
+            title="Share Token Address"
+            [metric]="fundProperties?.shareAddress | shortAddress: 8"
+            [toCopy]="fundProperties?.shareAddress"
+            [isLoading]="isContractLoading"
+            [copyEnabled]="true"></app-metric-box>
+        </div>
+        <div>
+          <app-metric-box
+            title="Oracle Address"
+            [metric]="fundProperties?.oracleAddress | shortAddress: 8"
+            [toCopy]="fundProperties?.oracleAddress"
+            [isLoading]="isContractLoading"
+            [copyEnabled]="true"></app-metric-box>
+        </div>
+        <div>
+          <app-metric-box
+            title="Treasury Address"
+            [metric]="fundProperties?.treasuryAddress | shortAddress: 8"
+            [toCopy]="fundProperties?.treasuryAddress"
+            [isLoading]="isContractLoading"
+            [copyEnabled]="true"></app-metric-box>
+        </div>
+        <div>
+          <app-metric-box
+            title="Total Fund Shares Outstanding"
+            [metric]="fundProperties?.totalSupply"
+            [isLoading]="isContractLoading"></app-metric-box>
+        </div>
+        <div>
+          <app-metric-box
+            title="Number of Shareholders"
+            [metric]="fundProperties?.numberOfShareholders"
+            [isLoading]="isContractLoading"></app-metric-box>
+        </div>
+        <div>
+          <app-metric-box
+            title="Fund Share Price"
+            [metric]="fundProperties?.sharePrice + ' ' + currency"
+            [isLoading]="isContractLoading"></app-metric-box>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-6 my-6">
+        <div>
+          <app-metric-box
+            title="Number of included Assets"
+            [metric]="fundProperties?.numberOfAssets"
+            [isLoading]="isContractLoading"></app-metric-box>
+        </div>
+        <div>
+          <app-metric-box
+            title="Total Fund Value"
+            [metric]="(fundProperties?.fundValue | number: '1.2-6') + ' ' + currency"
+            [isLoading]="isContractLoading"></app-metric-box>
+        </div>
+      </div>
+      <div class="grid grid-cols-7 gap-2 my-6">
+        <div class="pie-chart col-span-2">
+          <h3 class="font-bold">Asset Allocation</h3>
+          <mat-progress-bar *ngIf="isContractLoading" mode="query"></mat-progress-bar>
+          <canvas *ngIf="!isLoading" baseChart [data]="pieChartData" [type]="'pie'" [options]="pieChartOptions"> </canvas>
+        </div>
+        <div class="col-span-5 bg">
+          <div class="text-center">
+            <h3 class="font-bold">List of Assets</h3>
+          </div>
+          <mat-progress-bar *ngIf="isContractLoading" mode="query"></mat-progress-bar>
+          <table class="w-full font-mono" mat-table [dataSource]="dataSource">
+            <ng-container matColumnDef="position">
+              <th mat-header-cell *matHeaderCellDef>Nr.</th>
+              <td mat-cell *matCellDef="let element; let i = index">
+                {{ i + 1 }}
+              </td>
+            </ng-container>
+  
+            <ng-container matColumnDef="name">
+              <th mat-header-cell *matHeaderCellDef>Name</th>
+              <td mat-cell *matCellDef="let element">
+                <a
+                  *ngIf="element.assetType > 0"
+                  (click)="goToSynthetic(element.address)"
+                  class="text-purple font-bold cursor-pointer"
+                  >{{ element.name }}</a
+                >
+                <span *ngIf="element.assetType === 0">{{ element.name }}</span>
+              </td>
+            </ng-container>
+  
+            <ng-container matColumnDef="address">
+              <th mat-header-cell *matHeaderCellDef>Address</th>
+              <td mat-cell *matCellDef="let element">
+                <app-address-box [address]="element.address" [length]="5"></app-address-box>
+              </td>
+            </ng-container>
+  
+            <ng-container matColumnDef="perShareAmount">
+              <th mat-header-cell *matHeaderCellDef>
+                <div>Amount per Share</div>
+              </th>
+              <td mat-cell *matCellDef="let element">{{ element.perShareAmount }} {{ element.symbol }}</td>
+            </ng-container>
+  
+            <ng-container matColumnDef="assetType">
+              <th mat-header-cell *matHeaderCellDef>Asset Type</th>
+              <td mat-cell *matCellDef="let element">
+                <div class="px-1">
+                  <mat-chip-list>
+                    <mat-chip>
+                      {{ AssetTypes[element.assetType] }}
+                    </mat-chip>
+                  </mat-chip-list>
+                </div>
+              </td>
+            </ng-container>
+  
+            <ng-container matColumnDef="price">
+              <th mat-header-cell *matHeaderCellDef>
+                <div>Unit Price</div>
+                <div class="text-teal-500">USD Price</div>
+                <div class="text-purple font-bold">Updated At</div>
+              </th>
+              <td mat-cell *matCellDef="let element">
+                <div>{{ element.unitPrice }} {{ currency }}</div>
+                <div class="text-teal-500">{{ element.usdPrice | currency }}</div>
+                <div class="text-purple font-bold">
+                  {{ element.price.updatedAt | date: 'dd.MM.yyyy HH:mm' }}
+                </div>
+              </td>
+            </ng-container>
+  
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+          </table>
+        </div>
+      </div>
+    </div> -->
+  </port-card>
+</div>

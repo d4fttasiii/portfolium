@@ -29,6 +29,8 @@ contract PortfoliumGuard is AccessControl, PortfoliumRoles, IGuard {
         quorum = initialQuorum;
     }
 
+    // ---------- MODIFIERS ----------
+
     modifier onlyAdmin() {
         require(
             hasRole(ADMIN_ROLE, msg.sender),

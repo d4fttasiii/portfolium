@@ -9,4 +9,9 @@ abstract contract PortfoliumRoles {
     // ---------- CONTRACTS ROLES ----------
     bytes32 public constant TREASURY_ROLE = keccak256("PORTFOLIUM_TREASURY");
     bytes32 public constant PORTFOLIUM_ROLE = keccak256("PORTFOLIUM");
+
+    // ---------- OPERATORS ROLES ----------
+    bytes32 public constant REBALANCER_ROLE =
+        keccak256("PORTFOLIUM_FUND_BALANCER");
+    bytes32 public constant MINTER_ROLE = keccak256("PORTFOLIUM_MINTER");
 }

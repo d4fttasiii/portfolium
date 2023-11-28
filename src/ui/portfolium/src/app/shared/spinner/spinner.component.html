@@ -1,0 +1,10 @@
+<div class="absolute right-1/2 bottom-1/2 transform translate-x-1/2 translate-y-1/2">
+  <div
+    class="border-t-transparent border-solid animate-spin rounded-full border-sky-400"
+    [ngClass]="{
+      'w-8 h-8 border-4': size === 's',
+      'w-16 h-16 border-8': size === 'm',
+      'w-32 h-32 border-8': size === 'l',
+      'w-64 h-64 border-8': size === 'xl'
+    }"></div>
+</div>

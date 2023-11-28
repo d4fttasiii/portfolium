@@ -1,0 +1,8 @@
+<div class="metric-box text-center">
+  <h3 class="mb-2 font-bold">{{ title }}</h3>
+  <p *ngIf="!isLoading" class="text-primary animate__animated animate__flipInX">
+    {{ metric }}
+    <port-icon-button color="primary" icon="fa-copy" (clicked)="copy()" *ngIf="copyEnabled"></port-icon-button>
+  </p>
+  <port-progress-bar *ngIf="isLoading" [progress]="100"></port-progress-bar>
+</div>

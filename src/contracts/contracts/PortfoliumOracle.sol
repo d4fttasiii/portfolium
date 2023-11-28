@@ -21,6 +21,8 @@ contract PortfoliumOracle is PortfoliumRoles, IOracle {
         _uniswapFactory = IUniswapV3Factory(uniswapFactory);
     }
 
+    // ---------- MODIFIERS ----------
+
     modifier onlyAdmin() {
         require(
             _guard.hasPortfoliumRole(ADMIN_ROLE, msg.sender),
@@ -85,16 +87,16 @@ contract PortfoliumOracle is PortfoliumRoles, IOracle {
     // ---------- HELPERS ----------
 
     function _getPrice(
-        address assetA,
-        address assetB
+        address tokenA,
+        address tokenB
     ) private view returns (uint256) {
-        if (assetA == assetB) {
+        if (tokenA == tokenB) {
             return 1;
         }
 
-        ITokenStore.Token memory propA = _tokenStore.getToken(assetA);
-        ITokenStore.Token memory propB = _tokenStore.getToken(assetB);
-
+        ITokenStore.Token memory propA = _tokenStore.getToken(tokenA);
+        ITokenStore.Token memory propB = _tokenStore.getToken(tokenB);
+        
         for (uint8 i = 0; i < _feeTiers.length; i++) {
             address poolAddress = _uniswapFactory.getPool(
                 propA.tokenAddress,

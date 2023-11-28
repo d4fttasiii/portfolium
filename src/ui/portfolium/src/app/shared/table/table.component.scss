@@ -1,0 +1,21 @@
+.table {
+  border-spacing: 0 15px;
+}
+
+i {
+  font-size: 1rem !important;
+}
+
+.table tr {
+  border-radius: 20px;
+}
+
+tr td:last-child,
+tr th:last-child {
+  border-radius: 0 0.625rem 0.625rem 0;
+}
+
+tr td:first-child,
+tr th:first-child {
+  border-radius: 0.625rem 0 0 0.625rem;
+}

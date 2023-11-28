@@ -16,16 +16,26 @@ interface ITokenStore {
     }
 
     /// @notice Emitted when a new token is added
-    event TokenAdded(address indexed tokenAddress, string name, uint256 timestamp);
+    event TokenAdded(
+        address indexed tokenAddress,
+        string name,
+        uint256 timestamp
+    );
 
     /// @notice Emitted when a token is removed
-    event TokenRemoved(address indexed tokenAddress, string name, uint256 timestamp);
+    event TokenRemoved(
+        address indexed tokenAddress,
+        string name,
+        uint256 timestamp
+    );
 
     function addToken(address tokenAddress, TokenTypes tokenType) external;
 
     function removeToken(address tokenAddress) external;
 
     function tokenExists(address tokenAddress) external returns (bool);
+
+    function getTokenAddresses() external returns (address[] memory);
 
     function getToken(
         address tokenAddress

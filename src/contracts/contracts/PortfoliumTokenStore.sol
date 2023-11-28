@@ -9,10 +9,14 @@ import "./PortfoliumRoles.sol";
 contract PortfoliumTokenStore is PortfoliumRoles, ITokenStore {
     IGuard private _guard;
     mapping(address => Token) private _tokens;
+    address[] private _tokenAddresses;
 
-    constructor(address guard) {
+    constructor(address guard, address weth) {
         _guard = IGuard(guard);
+        _addToken(weth, TokenTypes.Native);
     }
+
+    // ---------- MODIFIERS ----------
 
     modifier onlyPortfolium() {
         require(
@@ -28,22 +32,7 @@ contract PortfoliumTokenStore is PortfoliumRoles, ITokenStore {
         address tokenAddress,
         TokenTypes tokenType
     ) external onlyPortfolium {
-        require(
-            !_tokenExists(tokenAddress),
-            "PortfoliumTokenStore: Token already exists!"
-        );
-        IERC20Metadata metadata = IERC20Metadata(tokenAddress);
-        string memory name = metadata.name();
-
-        _tokens[tokenAddress] = Token(
-            tokenAddress,
-            tokenType,
-            name,
-            metadata.symbol(),
-            metadata.decimals()
-        );
-
-        emit TokenAdded(tokenAddress, name, block.timestamp);
+        _addToken(tokenAddress, tokenType);
     }
 
     function removeToken(address tokenAddress) external onlyPortfolium {
@@ -74,9 +63,33 @@ contract PortfoliumTokenStore is PortfoliumRoles, ITokenStore {
         revert("PortfoliumTokenStore: Token not found!");
     }
 
+    function getTokenAddresses() external view returns (address[] memory) {
+        return _tokenAddresses;
+    }
+
     // ---------- HELPERS ----------
 
     function _tokenExists(address tokenAddress) private view returns (bool) {
         return _tokens[tokenAddress].tokenAddress != address(0);
+    }
+
+    function _addToken(address tokenAddress, TokenTypes tokenType) private {
+        require(
+            !_tokenExists(tokenAddress),
+            "PortfoliumTokenStore: Token already exists!"
+        );
+        IERC20Metadata metadata = IERC20Metadata(tokenAddress);
+        string memory name = metadata.name();
+
+        _tokens[tokenAddress] = Token(
+            tokenAddress,
+            tokenType,
+            name,
+            metadata.symbol(),
+            metadata.decimals()
+        );
+        _tokenAddresses.push(tokenAddress);
+
+        emit TokenAdded(tokenAddress, name, block.timestamp);
     }
 }

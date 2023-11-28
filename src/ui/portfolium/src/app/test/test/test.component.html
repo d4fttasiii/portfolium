@@ -1,0 +1,15 @@
+<div>
+  <div class="my-2">
+    <h1 class="text-3xl font-bold underline">{{ title }}</h1>
+    <port-input name="text_1" id="text_1" label="Text 1" [(ngModel)]="title"></port-input>
+    <port-button (clicked)="asd()">Click!</port-button>
+    <port-icon-button [icon]="'fa-solid fa-code'" (clicked)="asd()"></port-icon-button>
+    <port-table [dataSource]="dataSource" [isLoading]="tableLoading"></port-table>
+  </div>
+  <div class="my-2">
+    <port-spinner></port-spinner>
+  </div>
+  <div class="my-2">
+    <port-progress-bar [progress]="75"></port-progress-bar>
+  </div>
+</div>

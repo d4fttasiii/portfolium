@@ -6,6 +6,7 @@ import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/ITokenStore.sol";
 import "./interfaces/ITreasury.sol";
+import "./interfaces/IToken.sol";
 import "./interfaces/IGuard.sol";
 import "./interfaces/IWETH.sol";
 import "./PortfoliumRoles.sol";
@@ -13,20 +14,25 @@ import "./PortfoliumRoles.sol";
 contract PortfoliumTreasury is PortfoliumRoles, ITreasury {
     IGuard private _guard;
     ITokenStore private _tokenStore;
+    IToken private _portfoliumToken;
     ISwapRouter private _uniswapRouter;
-    IWETH private _weth;
+    IWETH public _weth;
 
     constructor(
         address guard,
         address tokenStore,
+        address portfoliumToken,
         address uniswapRouter,
         address weth
     ) {
         _guard = IGuard(guard);
         _tokenStore = ITokenStore(tokenStore);
+        _portfoliumToken = IToken(portfoliumToken);
         _uniswapRouter = ISwapRouter(uniswapRouter);
         _weth = IWETH(weth);
     }
+
+    // ---------- MODIFIERS ----------
 
     modifier onlyPortfolium() {
         require(
